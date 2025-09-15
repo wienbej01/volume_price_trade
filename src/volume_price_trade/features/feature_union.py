@@ -1,0 +1,3 @@
+"""Merge feature sets; schema/version validation."""
+
+def build_feature_matrix(df, cfg): ...

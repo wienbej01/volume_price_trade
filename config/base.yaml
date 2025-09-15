@@ -1,0 +1,73 @@
+project: llm_behavior_trading
+data:
+  gcs:
+    bucket: jwss_data_store
+    root: stocks
+    use_gcsfs: true
+  schema:
+    timestamp: timestamp
+    open: open
+    high: high
+    low: low
+    close: close
+    volume: volume
+    ticker: ticker
+
+sessions:
+  tz: America/New_York
+  rth_start: "09:30"
+  rth_end: "16:00"
+  eod_flat_minutes_before_close: 1
+
+risk:
+  start_equity: 10000
+  risk_perc: 0.02
+  max_trades_per_day: 5
+  atr_stop_mult: 1.5
+  take_profit_R: 2.0
+  slippage_cents: 1
+  commission_per_share: 0.005
+
+features:
+  atr_window: 20
+  rvol_windows: [5, 20]
+  volume_profile:
+    bin_size: 0.05
+    value_area: 0.70
+    rolling_sessions: 20
+  ict:
+    fvg_min_size_atr: 0.25
+    displacement_body_atr: 1.2
+  vpa:
+    rvol_climax: 2.5
+    vdu_threshold: 0.4
+
+time_of_day:
+  killzones:
+    ny_open: ["09:30","11:30"]
+    lunch: ["12:00","13:30"]
+    pm_drive: ["13:30","16:00"]
+
+horizons_minutes: [5, 15, 30, 60, 120, 240]
+
+cv:
+  walk_forward:
+    train_months: 24
+    val_months: 1
+    embargo_days: 5
+  ticker_holdout: 20
+
+tickers:
+  train: [
+    AAPL, MSFT, AMZN, GOOGL, META, NVDA, AMD, INTC, MU, AVGO, NFLX, TSLA, QCOM, TXN, ADI, AMAT,
+    CRM, ORCL, NOW, PANW, SNPS, INTU,
+    HON, GE, LMT, BA, CAT, DE,
+    JPM, BAC, WFC, C, MS, GS,
+    UNH, JNJ, PFE, MRK, ABBV, GILD, AMGN,
+    PG, KO, PEP, COST, WMT, TGT, HD, LOW, NKE, SBUX, MCD, DIS,
+    XOM, CVX, COP, SLB, FCX, NEE,
+    VZ, CMCSA
+  ]
+  oos: [
+    REGN, LLY, TMO, MDT, BMY, BKNG, MAR, DHI, LEN, PLD, AMT, O, SPG, EOG, DUK, SO, TMUS, KR, AIG, MET
+  ]

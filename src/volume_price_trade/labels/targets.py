@@ -1,0 +1,3 @@
+"""Triple-barrier style labels constrained to 5–240m and EOD flat."""
+
+def triple_barrier_labels(df, horizons_min, atr_mult_sl, r_mult_tp, eod_flat: bool): ...

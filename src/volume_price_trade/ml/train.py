@@ -1,0 +1,3 @@
+"""Train and persist artifacts."""
+
+def train_model(config_path: str): ...

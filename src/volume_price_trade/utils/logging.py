@@ -1,0 +1,3 @@
+"""Logger factory."""
+
+def get_logger(name="vpt"): ...

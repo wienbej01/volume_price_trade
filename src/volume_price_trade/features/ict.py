@@ -1,0 +1,3 @@
+"""Top-5 ICT proxies: FVG, liquidity sweep, displacement, EQ distance, killzones."""
+
+def compute_ict_events(df): ...

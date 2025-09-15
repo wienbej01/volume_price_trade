@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+GLM-4.5 Orchestrator Runner (v3)
+- No large stdout: writes detailed logs to logs/glm_orchestrator.log
+- Safe tool-calling (mkdirs/write_file/append_file/update_yaml/run) under repo root only
+- Caps assistant output tokens to reduce blast radius
+- Defensive error handling + bounded tool loop
+"""
+import os, sys, json, pathlib, subprocess, traceback, argparse
+from datetime import datetime
+from typing import Any, Dict, List
+
+# pip install openai>=1.40 PyYAML>=6.0.1
+from openai import OpenAI
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SAFE_ROOT = ROOT.resolve()
+
+SYSTEM_POLICY = f"""
+You are the Orchestrator for the local repo at: {SAFE_ROOT}
+Rules:
+- Operate ONLY within this repo root; refuse any path that escapes it.
+- Use tools: mkdirs, write_file, append_file, update_yaml, run.
+- Use 'run' for every command you claim to execute (tests, linters, git, python).
+- Be incremental; keep YAML/JSON valid; use UTC timestamps when asked.
+- No network calls; no secrets exfiltration.
+"""
+
+TOOLS_SPEC = [
+  {"type":"function","function":{
+    "name":"mkdirs","description":"Create directories under repo root.",
+    "parameters":{"type":"object","properties":{"paths":{"type":"array","items":{"type":"string"}}},"required":["paths"]}
+  }},
+  {"type":"function","function":{
+    "name":"write_file","description":"Create/overwrite a text file under repo root.",
+    "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}
+  }},
+  {"type":"function","function":{
+    "name":"append_file","description":"Append text to a file under repo root.",
+    "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}
+  }},
+  {"type":"function","function":{
+    "name":"update_yaml","description":"Replace YAML file with provided text (model ensures validity).",
+    "parameters":{"type":"object","properties":{"path":{"type":"string"},"new_yaml":{"type":"string"}},"required":["path","new_yaml"]}
+  }},
+  {"type":"function","function":{
+    "name":"run","description":"Run a shell command from repo root; returns stdout/stderr/exit code.",
+    "parameters":{"type":"object","properties":{"cmd":{"type":"string"}},"required":["cmd"]}
+  }},
+]
+
+def _safe_path(p: str) -> pathlib.Path:
+    rp = (SAFE_ROOT / p).resolve()
+    if not str(rp).startswith(str(SAFE_ROOT)):
+        raise ValueError(f"Unsafe path outside repo: {p}")
+    return rp
+
+def mkdirs(paths: List[str]) -> Dict[str, Any]:
+    created = []
+    for p in paths:
+        rp = _safe_path(p); rp.mkdir(parents=True, exist_ok=True)
+        created.append(str(rp.relative_to(SAFE_ROOT)))
+    return {"created": created}
+
+def write_file(path: str, content: str) -> Dict[str, Any]:
+    rp = _safe_path(path); rp.parent.mkdir(parents=True, exist_ok=True)
+    rp.write_text(content, encoding="utf-8")
+    return {"wrote": str(rp.relative_to(SAFE_ROOT)), "bytes": len(content.encode("utf-8"))}
+
+def append_file(path: str, content: str) -> Dict[str, Any]:
+    rp = _safe_path(path); rp.parent.mkdir(parents=True, exist_ok=True)
+    with rp.open("a", encoding="utf-8") as f: f.write(content)
+    return {"appended": str(rp.relative_to(SAFE_ROOT)), "bytes": len(content.encode("utf-8"))}
+
+def update_yaml(path: str, new_yaml: str) -> Dict[str, Any]:
+    return write_file(path, new_yaml)
+
+def run(cmd: str) -> Dict[str, Any]:
+    proc = subprocess.run(cmd, shell=True, cwd=str(SAFE_ROOT),
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    def tail(s: str, limit=6000):
+        return s if len(s) <= limit else ("<tail>\n" + s[-limit:])
+    return {"cmd": cmd, "returncode": proc.returncode,
+            "stdout": tail(proc.stdout), "stderr": tail(proc.stderr)}
+
+TOOL_IMPL = {"mkdirs": mkdirs, "write_file": write_file, "append_file": append_file, "update_yaml": update_yaml, "run": run}
+
+def call_model(client: OpenAI, messages: List[Dict[str, Any]], max_tokens: int):
+    return client.chat.completions.create(
+        model="z-ai/glm-4.5",
+        messages=messages,
+        tools=TOOLS_SPEC,
+        reasoning={"enabled": True},
+        max_tokens=max_tokens,       # keep small to avoid massive dumps
+        temperature=0.2,
+    )
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("prompt_file", help="Path under repo, e.g., codex/prompts/00_persona.md")
+    ap.add_argument("--log", default="logs/glm_orchestrator.log", help="Log file path")
+    ap.add_argument("--loops", type=int, default=20, help="Max tool-call loops")
+    ap.add_argument("--max-tokens", type=int, default=900, help="Max tokens per assistant turn")
+    ap.add_argument("--quiet", action="store_true", help="Do not print assistant text to stdout (recommended)")
+    args = ap.parse_args()
+
+    log_path = (SAFE_ROOT / args.log).resolve()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
+    def log(*parts: str):
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write(" ".join(parts) + "\n")
+
+    try:
+        pf = _safe_path(args.prompt_file)
+        user_prompt = pf.read_text(encoding="utf-8")
+    except Exception as e:
+        print(f"[fatal] failed to read prompt file: {e}", file=sys.stderr); sys.exit(1)
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    base_url = os.environ.get("OPENAI_BASE_URL", "https://openrouter.ai/api/v1")
+    if not api_key:
+        print("OPENROUTER_API_KEY not set. Run: source ./env.sh", file=sys.stderr); sys.exit(2)
+
+    client = OpenAI(api_key=api_key, base_url=base_url)
+
+    messages: List[Dict[str, Any]] = [
+        {"role":"system","content": SYSTEM_POLICY},
+        {"role":"user","content": user_prompt},
+    ]
+
+    log("=== NEW RUN ===", datetime.utcnow().isoformat()+"Z", f"prompt={pf}")
+
+    for i in range(args.loops):
+        try:
+            resp = call_model(client, messages, args.max_tokens)
+        except Exception as e:
+            err = f"[fatal] OpenRouter call failed: {e}"
+            log(err); print(err, file=sys.stderr); sys.exit(3)
+
+        choice = resp.choices[0]
+        msg = choice.message
+        content = (msg.content or "").strip()
+        if content:
+            log(f"[assistant turn {i}]:\n{content}\n")
+            if not args.quiet:
+                # Print a tiny confirmation only
+                print(f"[assistant turn {i}] (logged {len(content)} chars)")
+
+        tool_calls = getattr(msg, "tool_calls", None)
+        if not tool_calls:
+            log("[done] no more tool calls")
+            break
+
+        # Execute tool calls
+        for tc in tool_calls:
+            name = tc.function.name
+            try:
+                args_json = json.loads(tc.function.arguments or "{}")
+            except Exception as e:
+                args_json = {}
+                log(f"[warn] bad tool args json for {name}: {e}")
+
+            try:
+                result = TOOL_IMPL[name](**args_json)
+            except Exception as e:
+                result = {"error": str(e), "trace": traceback.format_exc(limit=1)}
+            # record result
+            log(f"[tool {name}]: args={json.dumps(args_json, ensure_ascii=False)}")
+            log(f"[tool {name} result]: {json.dumps(result, ensure_ascii=False)}")
+
+            # send tool result back
+            messages.append({
+                "role": "tool",
+                "tool_call_id": tc.id,
+                "name": name,
+                "content": json.dumps(result, ensure_ascii=False),
+            })
+
+        # also append assistant content so model keeps its own plan/context
+        if content:
+            messages.append({"role":"assistant","content":content})
+
+    log("=== RUN END ===")
+
+if __name__ == "__main__":
+    # Avoid locale/encoding surprises
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    main()

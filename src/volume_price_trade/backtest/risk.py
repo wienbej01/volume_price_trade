@@ -1,0 +1,3 @@
+"""2% VaR position sizing given stop distance."""
+
+def shares_for_risk(equity: float, entry: float, stop: float, risk_perc: float): ...

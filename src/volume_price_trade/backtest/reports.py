@@ -1,0 +1,3 @@
+"""HTML/MD reporting."""
+
+def make_report(bt_result, path: str): ...

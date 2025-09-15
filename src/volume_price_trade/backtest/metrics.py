@@ -1,0 +1,3 @@
+"""Trade/equity stats, drawdowns, heatmaps."""
+
+def compute_trade_stats(trades): ...

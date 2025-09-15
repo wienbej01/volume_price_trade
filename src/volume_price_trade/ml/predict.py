@@ -1,0 +1,3 @@
+"""Inference & decision function (Long/Short/Hold)."""
+
+def predict_signals(model, X, thresholds): ...

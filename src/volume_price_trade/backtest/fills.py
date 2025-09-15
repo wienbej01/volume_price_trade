@@ -1,0 +1,3 @@
+"""Entry/exit price modeling, slippage."""
+
+def get_fill_price(side: str, bar, mode="next_open"): ...

@@ -1,0 +1,3 @@
+"""XGBoost/LightGBM baselines as pipelines."""
+
+def train_xgb(X, y, meta, splits, config): ...

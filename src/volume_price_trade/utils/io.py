@@ -1,0 +1,3 @@
+"""Artifact IO helpers (parquet/feather)."""
+
+def save_parquet(df, path): ...

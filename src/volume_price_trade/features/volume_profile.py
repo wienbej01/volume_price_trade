@@ -1,0 +1,3 @@
+"""Volume Profile features (POC, VAH/VAL, HVN/LVN, distances)."""
+
+def rolling_volume_profile(df, sessions: int, bin_size: float, value_area: float): ...

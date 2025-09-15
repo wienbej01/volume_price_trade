@@ -1,0 +1,3 @@
+"""Core simulator: 1 position per ticker, hold 5–240m, force flat EOD."""
+
+def run_backtest(signals_df, bars_df, config): ...

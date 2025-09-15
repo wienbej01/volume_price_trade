@@ -1,0 +1,3 @@
+"""Build X/y with purging and group keys (date/ticker)."""
+
+def make_dataset(tickers, start, end, config): ...

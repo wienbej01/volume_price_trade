@@ -1,0 +1,3 @@
+"""Top-5 VPA events: climax, VDU, churn, effort-vs-result, breakout-conf."""
+
+def compute_vpa_events(df): ...
