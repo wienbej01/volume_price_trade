@@ -117,22 +117,22 @@ class TestNextSessionClose:
         # Should be Monday at 16:00 ET
         expected = pd.Timestamp("2023-06-19 16:00:00").tz_localize(ET)
         assert result == expected
-    
+
     def test_utc_timestamp(self):
         """Test UTC timestamp conversion."""
         # Tuesday 14:30 UTC = 10:30 ET
         ts = pd.Timestamp("2023-06-13 14:30:00").tz_localize("UTC")
         result = next_session_close(ts)
-        
+
         # Should be same day at 16:00 ET = 20:00 UTC
         expected = pd.Timestamp("2023-06-13 20:00:00").tz_localize("UTC")
         assert result == expected
-    
+
     def test_string_timestamp(self):
         """Test string timestamp input."""
         ts = "2023-06-13 10:30:00"
         result = next_session_close(ts)
-        
+
         # Should be same day at 16:00 ET
         expected = pd.Timestamp("2023-06-13 16:00:00").tz_localize(ET)
         assert result == expected
