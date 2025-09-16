@@ -291,7 +291,9 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
             if not np.isnan(poc) and not np.isnan(current_atr) and current_atr > 0:
                 close_price = row['close']
                 dist_to_poc = abs(close_price - poc)
-                result_df.loc[idx, 'vp_dist_to_poc_atr'] = dist_to_poc / current_atr
+                # Cap the distance to avoid extreme values
+                dist_atr = min(dist_to_poc / current_atr, 10.0)
+                result_df.loc[idx, 'vp_dist_to_poc_atr'] = dist_atr
             
             # Check if price is inside value area
             if not np.isnan(val) and not np.isnan(vah):
