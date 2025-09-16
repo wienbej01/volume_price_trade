@@ -183,7 +183,7 @@ def _purge_overlapping_events(
     keep_indices = []
     
     # Track the last event end time + embargo
-    last_event_end = None
+    last_embargo_end = None
     
     # Iterate through each event
     for idx, row in df_sorted.iterrows():
@@ -198,9 +198,9 @@ def _purge_overlapping_events(
         embargo_end = event_end_time + pd.Timedelta(days=embargo_days)
         
         # If this is the first event or after the last event's embargo period
-        if last_event_end is None or idx >= embargo_end:
+        if last_embargo_end is None or idx >= last_embargo_end:
             keep_indices.append(idx)
-            last_event_end = event_end_time
+            last_embargo_end = embargo_end
     
     # Return DataFrame with only non-overlapping events
     purged_df = df_sorted.loc[keep_indices]

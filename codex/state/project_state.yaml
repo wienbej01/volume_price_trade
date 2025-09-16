@@ -10,7 +10,7 @@ milestones:
     status: done
   - id: M3
     name: Labels & Dataset
-    status: in_progress
+    status: done
   - id: M4
     name: ML Baselines & CV
     status: pending
@@ -46,6 +46,10 @@ runs:
     step: "M2-complete"
     timestamp: "2025-09-16T05:06:56Z"
     notes: "Completed M2 Features v1: Implemented all 6 feature modules (TA, VP, VPA, ICT, ToD, VWAP) with 68 total features, fixed critical ICT shape doubling bug, comprehensive integration testing completed"
+  - id: "run-0005"
+    step: "M3-done"
+    timestamp: "2025-09-16T06:38:45Z"
+    notes: "Completed M3 Labels & Dataset: Implemented triple-barrier labeling system with EOD truncation, dataset builder with purging and embargo, comprehensive tests for SL/TP/timeout behavior"
 artifacts:
   - id: A00
     type: "prompt_execution"
@@ -72,3 +76,8 @@ artifacts:
     description: "Complete M2 feature set with 68 features across 6 modules: TA Basic, Volume Profile, VPA, ICT, Time of Day, and VWAP"
     timestamp: "2025-09-16T05:06:56Z"
     related_run: "run-0004"
+  - id: "A05"
+    type: "labels_dataset_implementation"
+    description: "Complete M3 Labels & Dataset: Triple-barrier labeling system with EOD truncation, dataset builder with purging and embargo, comprehensive tests"
+    timestamp: "2025-09-16T06:39:35Z"
+    related_run: "run-0005"
