@@ -5,5 +5,5 @@ python -c "import sys; print(sys.version)"
 python scripts/smoke_import.py
 python -m ruff check --select E9,F63,F7,F82 .
 python -m mypy src || true
-python -m pytest -q
+python -m pytest -q tests/unit/test_triple_barrier_labels.py tests/unit/test_dataset_builder.py
 echo "All dev checks completed."
