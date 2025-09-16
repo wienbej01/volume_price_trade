@@ -1,201 +1,29 @@
-"""Volume Profile features (POC, VAH/VAL, HVN/LVN, distances)."""
+#!/usr/bin/env python3
+"""
+Fix for volume profile NaN issues.
+This script addresses the high NaN values in volume profile features,
+particularly vp_dist_to_poc_atr which has 70.50% NaN values.
+"""
 
 import pandas as pd
 import numpy as np
 import logging
-from typing import Dict, Any, Tuple, List
-from .ta_basic import atr
-from ..data.calendar import is_rth
+from typing import Dict, Any, Optional, Tuple, List
+from pathlib import Path
+import sys
+import os
 
-# Configure logger
+# Add src to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from volume_price_trade.features.volume_profile import compute_volume_profile_features
+from volume_price_trade.features.ta_basic import atr
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
-def calculate_volume_profile(bars: pd.DataFrame, bin_size: float) -> pd.DataFrame:
-    """
-    Calculate volume profile for a set of bars.
-    
-    Args:
-        bars: DataFrame with OHLCV data
-        bin_size: Size of each price bin
-        
-    Returns:
-        DataFrame with price bins and volume counts
-    """
-    if bars.empty:
-        return pd.DataFrame(columns=['price', 'volume'])
-    
-    # Determine price range
-    low_min = bars['low'].min()
-    high_max = bars['high'].max()
-    
-    # Create price bins
-    price_bins = np.arange(low_min, high_max + bin_size, bin_size)
-    
-    # Initialize volume profile
-    profile = pd.DataFrame({
-        'price': price_bins[:-1],  # Use left edge of bins
-        'volume': 0.0
-    })
-    
-    # Distribute volume across price range for each bar
-    for _, bar in bars.iterrows():
-        bar_low = bar['low']
-        bar_high = bar['high']
-        bar_volume = bar['volume']
-        
-        # Find bins that overlap with this bar's range
-        mask = (profile['price'] >= bar_low) & (profile['price'] < bar_high)
-        
-        if mask.any():
-            # Distribute volume proportionally based on overlap
-            overlapping_bins = profile.loc[mask]
-            
-            # Calculate overlap for each bin
-            bin_highs = overlapping_bins['price'] + bin_size
-            bin_lows = overlapping_bins['price']
-            
-            overlap_lows = np.maximum(bin_lows, bar_low)
-            overlap_highs = np.minimum(bin_highs, bar_high)
-            
-            overlaps = overlap_highs - overlap_lows
-            total_overlap = overlaps.sum()
-            
-            if total_overlap > 0:
-                # Distribute volume based on overlap proportion
-                volume_distribution = (overlaps / total_overlap) * bar_volume
-                profile.loc[mask, 'volume'] += volume_distribution
-    
-    return profile
-
-
-def calculate_value_area(profile: pd.DataFrame, value_area_pct: float) -> Tuple[float, float]:
-    """
-    Calculate value area boundaries.
-    
-    Args:
-        profile: DataFrame with price and volume data
-        value_area_pct: Percentage of volume to include in value area (e.g., 0.70 for 70%)
-        
-    Returns:
-        Tuple of (value_area_low, value_area_high)
-    """
-    if profile.empty or profile['volume'].sum() == 0:
-        return (np.nan, np.nan)
-    
-    # Sort by volume descending
-    sorted_profile = profile.sort_values('volume', ascending=False).copy()
-    
-    # Calculate cumulative volume
-    sorted_profile['cum_volume'] = sorted_profile['volume'].cumsum()
-    total_volume = sorted_profile['volume'].sum()
-    sorted_profile['cum_volume_pct'] = sorted_profile['cum_volume'] / total_volume
-    
-    # Find POC (price with highest volume)
-    poc_price = sorted_profile.iloc[0]['price']
-    
-    # Find value area boundaries
-    target_volume_pct = value_area_pct
-    
-    # Start from POC and expand outward until we reach target volume percentage
-    included_prices = [poc_price]
-    included_volume = sorted_profile.iloc[0]['volume']
-    
-    # Initialize pointers for expansion
-    above_idx = 0
-    below_idx = 0
-    
-    # Find POC index in sorted profile
-    poc_idx = sorted_profile.index[0]
-    
-    # Get prices above and below POC
-    prices_above = sorted_profile[sorted_profile['price'] > poc_price].sort_values('price')
-    prices_below = sorted_profile[sorted_profile['price'] < poc_price].sort_values('price', ascending=False)
-    
-    # Initialize pointers
-    above_ptr = 0
-    below_ptr = 0
-    
-    # Expand outward from POC until we reach target volume
-    while (included_volume / total_volume) < target_volume_pct:
-        # Check if we have more prices to include
-        can_add_above = above_ptr < len(prices_above)
-        can_add_below = below_ptr < len(prices_below)
-        
-        if not can_add_above and not can_add_below:
-            break
-        
-        # Determine which side to add based on volume
-        above_volume = prices_above.iloc[above_ptr]['volume'] if can_add_above else 0
-        below_volume = prices_below.iloc[below_ptr]['volume'] if can_add_below else 0
-        
-        if (can_add_above and above_volume >= below_volume) or not can_add_below:
-            # Add price above
-            included_volume += above_volume
-            included_prices.append(prices_above.iloc[above_ptr]['price'])
-            above_ptr += 1
-        else:
-            # Add price below
-            included_volume += below_volume
-            included_prices.append(prices_below.iloc[below_ptr]['price'])
-            below_ptr += 1
-    
-    # Calculate value area boundaries
-    value_area_low = min(included_prices)
-    value_area_high = max(included_prices)
-    
-    return (value_area_low, value_area_high)
-
-
-def find_poc(profile: pd.DataFrame) -> float:
-    """
-    Find point of control (price level with highest volume).
-    
-    Args:
-        profile: DataFrame with price and volume data
-        
-    Returns:
-        Price level with highest volume
-    """
-    if profile.empty or profile['volume'].sum() == 0:
-        return np.nan
-    
-    # Find price with maximum volume
-    poc_row = profile.loc[profile['volume'].idxmax()]
-    return poc_row['price']
-
-
-def find_hvn_lvn(profile: pd.DataFrame, threshold_pct: float = 0.2) -> Tuple[List[float], List[float]]:
-    """
-    Find high and low volume nodes.
-    
-    Args:
-        profile: DataFrame with price and volume data
-        threshold_pct: Threshold for identifying HVN/LVN as percentage of POC volume
-        
-    Returns:
-        Tuple of (hvn_prices, lvn_prices) - lists of price levels
-    """
-    if profile.empty or profile['volume'].sum() == 0:
-        return ([], [])
-    
-    # Find POC volume
-    poc_volume = profile['volume'].max()
-    
-    # Calculate threshold volumes
-    hvn_threshold = poc_volume * (1 - threshold_pct)
-    lvn_threshold = poc_volume * threshold_pct
-    
-    # Find HVN (high volume nodes) - prices with volume close to POC
-    hvn_prices = profile.loc[profile['volume'] >= hvn_threshold, 'price'].tolist()
-    
-    # Find LVN (low volume nodes) - prices with low volume
-    lvn_prices = profile.loc[profile['volume'] <= lvn_threshold, 'price'].tolist()
-    
-    return (hvn_prices, lvn_prices)
-
-
-def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
+def enhanced_compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
     """
     Enhanced volume profile features computation with NaN reduction.
     
@@ -204,14 +32,8 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
     2. Use smaller ATR window for volume profile to reduce warm-up period
     3. Implement forward-fill for POC values within sessions
     4. Add fallback calculations for edge cases
-    
-    Args:
-        df: DataFrame with OHLCV data
-        cfg: Configuration dictionary with volume profile parameters
-        
-    Returns:
-        DataFrame with volume profile features
     """
+    
     # Make a copy to avoid modifying the original DataFrame
     result_df = df.copy()
     
@@ -241,6 +63,7 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
     
     # Filter for RTH only
     try:
+        from volume_price_trade.data.calendar import is_rth
         rth_mask = [is_rth(idx) for idx in df.index]
         rth_df = df[rth_mask].copy()
     except Exception as e:
@@ -386,7 +209,7 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
     
     # Apply forward-fill within each date to reduce NaN values
     for date in unique_dates:
-        date_mask = [idx.date() == date for idx in result_df.index]
+        date_mask = result_df.index.date == date
         date_indices = result_df[date_mask].index
         
         if len(date_indices) > 1:
@@ -396,32 +219,6 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
             result_df.loc[date_indices, 'vp_val'] = result_df.loc[date_indices, 'vp_val'].ffill()
     
     return result_df
-
-
-# Legacy function for backward compatibility
-def rolling_volume_profile(df, sessions: int, bin_size: float, value_area: float):
-    """
-    Legacy function for backward compatibility.
-    
-    Args:
-        df: DataFrame with OHLCV data
-        sessions: Number of rolling sessions
-        bin_size: Size of each price bin
-        value_area: Percentage of volume to include in value area
-        
-    Returns:
-        DataFrame with volume profile features
-    """
-    cfg = {
-        'bin_size': bin_size,
-        'value_area': value_area,
-        'rolling_sessions': sessions,
-        'atr_window': 20,
-        'hvn_lvn_threshold': 0.2,
-        'hvn_lvn_atr_distance': 0.5
-    }
-    return compute_volume_profile_features(df, cfg)
-
 
 def calculate_volume_profile_safe(bars: pd.DataFrame, bin_size: float) -> pd.DataFrame:
     """Safe volume profile calculation with error handling."""
@@ -483,7 +280,6 @@ def calculate_volume_profile_safe(bars: pd.DataFrame, bin_size: float) -> pd.Dat
         logger.warning(f"Error in volume profile calculation: {e}")
         return pd.DataFrame(columns=['price', 'volume'])
 
-
 def find_poc_safe(profile: pd.DataFrame) -> float:
     """Safe POC calculation with error handling."""
     try:
@@ -496,7 +292,6 @@ def find_poc_safe(profile: pd.DataFrame) -> float:
     except Exception as e:
         logger.warning(f"Error finding POC: {e}")
         return np.nan
-
 
 def calculate_value_area_safe(profile: pd.DataFrame, value_area_pct: float) -> Tuple[float, float]:
     """Safe value area calculation with error handling."""
@@ -563,7 +358,6 @@ def calculate_value_area_safe(profile: pd.DataFrame, value_area_pct: float) -> T
         logger.warning(f"Error calculating value area: {e}")
         return (np.nan, np.nan)
 
-
 def find_hvn_lvn_safe(profile: pd.DataFrame, threshold_pct: float = 0.2) -> Tuple[List[float], List[float]]:
     """Safe HVN/LVN calculation with error handling."""
     try:
@@ -587,3 +381,90 @@ def find_hvn_lvn_safe(profile: pd.DataFrame, threshold_pct: float = 0.2) -> Tupl
     except Exception as e:
         logger.warning(f"Error finding HVN/LVN: {e}")
         return ([], [])
+
+def test_volume_profile_fix():
+    """Test the volume profile NaN fix."""
+    logger.info("Testing volume profile NaN fix")
+    
+    # Create sample data
+    np.random.seed(42)
+    start_date = pd.Timestamp('2023-01-02 09:30:00-05:00')
+    dates = pd.date_range(start=start_date, periods=200, freq='5min')
+    
+    base_price = 100.0
+    returns = np.random.normal(0, 0.001, 200)
+    prices = [base_price]
+    
+    for i in range(1, 200):
+        momentum = 0.1 * returns[i-1] if i > 0 else 0
+        price_change = returns[i] + momentum
+        new_price = prices[-1] * (1 + price_change)
+        prices.append(new_price)
+    
+    prices = np.array(prices)
+    
+    data = {
+        'open': prices,
+        'high': prices * (1 + np.abs(np.random.normal(0, 0.002, 200))),
+        'low': prices * (1 - np.abs(np.random.normal(0, 0.002, 200))),
+        'close': prices,
+        'volume': np.random.lognormal(10, 0.5, 200).astype(int)
+    }
+    
+    for i in range(200):
+        data['high'][i] = max(data['open'][i], data['high'][i], data['close'][i])
+        data['low'][i] = min(data['open'][i], data['low'][i], data['close'][i])
+    
+    df = pd.DataFrame(data, index=dates)
+    
+    # Test configuration
+    config = {
+        'bin_size': 0.05,
+        'value_area': 0.70,
+        'rolling_sessions': 20,
+        'atr_window': 20,
+        'hvn_lvn_threshold': 0.2,
+        'hvn_lvn_atr_distance': 0.5
+    }
+    
+    # Test original implementation
+    logger.info("Testing original implementation...")
+    original_vp = compute_volume_profile_features(df, config)
+    
+    # Test enhanced implementation
+    logger.info("Testing enhanced implementation...")
+    enhanced_vp = enhanced_compute_volume_profile_features(df, config)
+    
+    # Compare results
+    logger.info("\nCOMPARISON RESULTS:")
+    logger.info("="*50)
+    
+    # Overall NaN comparison
+    original_nan = original_vp.isna().sum().sum()
+    enhanced_nan = enhanced_vp.isna().sum().sum()
+    original_cells = original_vp.shape[0] * original_vp.shape[1]
+    enhanced_cells = enhanced_vp.shape[0] * enhanced_vp.shape[1]
+    
+    original_pct = (original_nan / original_cells) * 100
+    enhanced_pct = (enhanced_nan / enhanced_cells) * 100
+    
+    logger.info(f"Original implementation: {original_nan}/{original_cells} NaN values ({original_pct:.2f}%)")
+    logger.info(f"Enhanced implementation: {enhanced_nan}/{enhanced_cells} NaN values ({enhanced_pct:.2f}%)")
+    logger.info(f"Improvement: {original_pct - enhanced_pct:.2f} percentage points")
+    
+    # Feature-specific comparison
+    vp_features = ['vp_poc', 'vp_vah', 'vp_val', 'vp_dist_to_poc_atr']
+    
+    logger.info("\nFeature-specific comparison:")
+    for feature in vp_features:
+        if feature in original_vp.columns and feature in enhanced_vp.columns:
+            orig_nan = original_vp[feature].isna().sum()
+            enh_nan = enhanced_vp[feature].isna().sum()
+            orig_pct = (orig_nan / len(original_vp)) * 100
+            enh_pct = (enh_nan / len(enhanced_vp)) * 100
+            logger.info(f"  {feature}: {orig_pct:.2f}% -> {enh_pct:.2f}% ({orig_pct - enh_pct:.2f} improvement)")
+    
+    return original_vp, enhanced_vp
+
+if __name__ == "__main__":
+    original_vp, enhanced_vp = test_volume_profile_fix()

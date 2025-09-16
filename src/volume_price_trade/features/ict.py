@@ -370,27 +370,35 @@ def compute_ict_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
         result_df[f'ict_killzone_{zone_name}'] = False
     
     # Compute features for each row
-    for idx in range(len(df)):
+    for pos_idx in range(len(df)):
+        # Get the actual index label
+        idx_label = df.index[pos_idx]
+        
         # FVG detection
-        result_df.at[idx, 'ict_fvg_up'] = detect_fvg_up(df, idx, fvg_min_size_atr)
-        result_df.at[idx, 'ict_fvg_down'] = detect_fvg_down(df, idx, fvg_min_size_atr)
+        result_df.at[idx_label, 'ict_fvg_up'] = detect_fvg_up(df, pos_idx, fvg_min_size_atr)
+        result_df.at[idx_label, 'ict_fvg_down'] = detect_fvg_down(df, pos_idx, fvg_min_size_atr)
         
         # Liquidity sweep detection
-        result_df.at[idx, 'ict_liquidity_sweep_up'] = detect_liquidity_sweep_up(df, idx)
-        result_df.at[idx, 'ict_liquidity_sweep_down'] = detect_liquidity_sweep_down(df, idx)
+        result_df.at[idx_label, 'ict_liquidity_sweep_up'] = detect_liquidity_sweep_up(df, pos_idx)
+        result_df.at[idx_label, 'ict_liquidity_sweep_down'] = detect_liquidity_sweep_down(df, pos_idx)
         
         # Displacement detection
-        result_df.at[idx, 'ict_displacement_up'] = detect_displacement_up(df, idx, displacement_body_atr)
-        result_df.at[idx, 'ict_displacement_down'] = detect_displacement_down(df, idx, displacement_body_atr)
+        result_df.at[idx_label, 'ict_displacement_up'] = detect_displacement_up(df, pos_idx, displacement_body_atr)
+        result_df.at[idx_label, 'ict_displacement_down'] = detect_displacement_down(df, pos_idx, displacement_body_atr)
         
         # Equilibrium distance
-        result_df.at[idx, 'ict_dist_to_eq'] = calculate_equilibrium_distance(df, idx)
+        result_df.at[idx_label, 'ict_dist_to_eq'] = calculate_equilibrium_distance(df, pos_idx)
         
         # Killzone detection
-        if idx < len(df) and 'timestamp' in df.columns:
-            killzone_flags = is_in_killzone(df.iloc[idx]['timestamp'], killzone_ranges)
+        if 'timestamp' in df.columns:
+            killzone_flags = is_in_killzone(df.iloc[pos_idx]['timestamp'], killzone_ranges)
             for zone_name, is_in_zone in killzone_flags.items():
-                result_df.at[idx, f'ict_{zone_name}'] = is_in_zone
+                result_df.at[idx_label, f'ict_{zone_name}'] = is_in_zone
+        else:
+            # Use index as timestamp if no timestamp column
+            killzone_flags = is_in_killzone(idx_label, killzone_ranges)
+            for zone_name, is_in_zone in killzone_flags.items():
+                result_df.at[idx_label, f'ict_{zone_name}'] = is_in_zone
     
     return result_df
 

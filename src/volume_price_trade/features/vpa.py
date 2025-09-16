@@ -34,7 +34,7 @@ def detect_climax_up(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_thre
     
     # Get ATR value
     atr_col = [col for col in df.columns if col.startswith('atr_')][0]
-    atr_value = df.at[idx, atr_col]
+    atr_value = df.iloc[idx][atr_col]
     
     # Check if body size > k*ATR
     if body_size <= atr_threshold * atr_value:
@@ -42,7 +42,7 @@ def detect_climax_up(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_thre
     
     # Get RVOL value (use the first available RVOL column)
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
-    rvol_value = df.at[idx, rvol_col]
+    rvol_value = df.iloc[idx][rvol_col]
     
     # Check if RVOL > threshold
     if rvol_value <= rvol_threshold:
@@ -79,7 +79,7 @@ def detect_climax_down(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_th
     
     # Get ATR value
     atr_col = [col for col in df.columns if col.startswith('atr_')][0]
-    atr_value = df.at[idx, atr_col]
+    atr_value = df.iloc[idx][atr_col]
     
     # Check if body size > k*ATR
     if body_size <= atr_threshold * atr_value:
@@ -87,7 +87,7 @@ def detect_climax_down(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_th
     
     # Get RVOL value (use the first available RVOL column)
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
-    rvol_value = df.at[idx, rvol_col]
+    rvol_value = df.iloc[idx][rvol_col]
     
     # Check if RVOL > threshold
     if rvol_value <= rvol_threshold:
@@ -126,7 +126,7 @@ def detect_vdu(df: pd.DataFrame, idx: int, rvol_threshold: float) -> int:
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
     
     # Check if both bars have high RVOL
-    if df.at[idx, rvol_col] <= rvol_threshold or df.at[idx - 1, rvol_col] <= rvol_threshold:
+    if df.iloc[idx][rvol_col] <= rvol_threshold or df.iloc[idx - 1][rvol_col] <= rvol_threshold:
         return 0
     
     return 1
@@ -155,7 +155,7 @@ def detect_churn(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_threshol
     
     # Get ATR value
     atr_col = [col for col in df.columns if col.startswith('atr_')][0]
-    atr_value = df.at[idx, atr_col]
+    atr_value = df.iloc[idx][atr_col]
     
     # Check if body size is small relative to ATR
     if body_size > atr_threshold * atr_value:
@@ -163,7 +163,7 @@ def detect_churn(df: pd.DataFrame, idx: int, atr_threshold: float, rvol_threshol
     
     # Get RVOL value (use the first available RVOL column)
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
-    rvol_value = df.at[idx, rvol_col]
+    rvol_value = df.iloc[idx][rvol_col]
     
     # Check if RVOL > threshold
     if rvol_value <= rvol_threshold:
@@ -196,7 +196,7 @@ def detect_effort_no_result(df: pd.DataFrame, idx: int, atr_threshold: float, rv
     
     # Get ATR value
     atr_col = [col for col in df.columns if col.startswith('atr_')][0]
-    atr_value = df.at[idx, atr_col]
+    atr_value = df.iloc[idx][atr_col]
     
     # Check if body size is significant relative to ATR
     if body_size <= atr_threshold * atr_value:
@@ -204,7 +204,7 @@ def detect_effort_no_result(df: pd.DataFrame, idx: int, atr_threshold: float, rv
     
     # Get RVOL value (use the first available RVOL column)
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
-    rvol_value = df.at[idx, rvol_col]
+    rvol_value = df.iloc[idx][rvol_col]
     
     # Check if RVOL > threshold
     if rvol_value <= rvol_threshold:
@@ -254,7 +254,7 @@ def detect_breakout(df: pd.DataFrame, idx: int, rvol_threshold: float, lookback:
     
     # Get RVOL value (use the first available RVOL column)
     rvol_col = [col for col in df.columns if col.startswith('rvol_')][0]
-    rvol_value = df.at[idx, rvol_col]
+    rvol_value = df.iloc[idx][rvol_col]
     
     # Check if RVOL > threshold
     if rvol_value <= rvol_threshold:
@@ -292,23 +292,23 @@ def compute_vpa_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
     result_df['vpa_breakout_conf'] = 0
     
     # Iterate through the DataFrame to detect patterns
-    for i in range(len(df)):
-        result_df.at[i, 'vpa_climax_up'] = detect_climax_up(
+    for i, idx in enumerate(df.index):
+        result_df.at[idx, 'vpa_climax_up'] = detect_climax_up(
             df, i, atr_threshold, rvol_climax
         )
-        result_df.at[i, 'vpa_climax_down'] = detect_climax_down(
+        result_df.at[idx, 'vpa_climax_down'] = detect_climax_down(
             df, i, atr_threshold, rvol_climax
         )
-        result_df.at[i, 'vpa_vdu'] = detect_vdu(
+        result_df.at[idx, 'vpa_vdu'] = detect_vdu(
             df, i, rvol_climax
         )
-        result_df.at[i, 'vpa_churn'] = detect_churn(
+        result_df.at[idx, 'vpa_churn'] = detect_churn(
             df, i, atr_threshold, rvol_climax
         )
-        result_df.at[i, 'vpa_effort_no_result'] = detect_effort_no_result(
+        result_df.at[idx, 'vpa_effort_no_result'] = detect_effort_no_result(
             df, i, atr_threshold, rvol_climax
         )
-        result_df.at[i, 'vpa_breakout_conf'] = detect_breakout(
+        result_df.at[idx, 'vpa_breakout_conf'] = detect_breakout(
             df, i, rvol_climax, breakout_lookback
         )
     

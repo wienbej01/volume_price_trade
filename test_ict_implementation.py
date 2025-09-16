@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from volume_price_trade.features.ict import compute_ict_features
 
-def create_test_data(n_bars=50):
+def create_test_data(n_bars=60):
     """Create test OHLCV data with some known patterns."""
     # Create a date range
     start_date = datetime(2023, 1, 1, 9, 30)
@@ -89,6 +89,22 @@ def create_test_data(n_bars=50):
     data['low'][30] = 103.7
     data['close'][30] = 103.9  # Closes back inside (below swing high)
     
+    # Fix the values at indices 29, 31, and 32 to avoid extremely low values
+    data['open'][29] = 103.7
+    data['high'][29] = 103.8
+    data['low'][29] = 103.6
+    data['close'][29] = 103.7
+    
+    data['open'][31] = 103.6
+    data['high'][31] = 103.7
+    data['low'][31] = 103.5
+    data['close'][31] = 103.6
+    
+    data['open'][32] = 101.9
+    data['high'][32] = 102.1
+    data['low'][32] = 101.7
+    data['close'][32] = 101.8
+    
     # Liquidity sweep down at index 35
     # First create a swing low around index 32-34
     # Index 33 will be our swing low (local minimum)
@@ -110,7 +126,7 @@ def create_test_data(n_bars=50):
     # Create a liquidity sweep down at index 35 with long down wick
     data['open'][35] = 101.7
     data['high'][35] = 101.8
-    data['low'][35] = 101.4  # Long down wick breaks previous swing low (101.5)
+    data['low'][35] = 101.2  # Long down wick breaks previous swing low (101.5)
     data['close'][35] = 101.6  # Closes back inside (above swing low)
     
     # Displacement up at index 40
@@ -125,10 +141,64 @@ def create_test_data(n_bars=50):
     data['low'][45] = 102.8
     data['close'][45] = 103.0  # Large body down
     
+    # Fix the values at indices 46-49 to avoid extremely low values
+    data['open'][46] = 103.0
+    data['high'][46] = 103.2
+    data['low'][46] = 102.9
+    data['close'][46] = 103.1
+    
+    data['open'][47] = 103.1
+    data['high'][47] = 103.3
+    data['low'][47] = 103.0
+    data['close'][47] = 103.2
+    
+    data['open'][48] = 103.2
+    data['high'][48] = 103.4
+    data['low'][48] = 103.1
+    data['close'][48] = 103.3
+    
+    data['open'][49] = 103.3
+    data['high'][49] = 103.5
+    data['low'][49] = 103.2
+    data['close'][49] = 103.4
+    
+    # Add additional data after index 50 specifically designed to trigger liquidity sweep
+    # First, create a clear swing low at index 52
+    data['open'][50] = 104.0
+    data['high'][50] = 104.2
+    data['low'][50] = 103.8
+    data['close'][50] = 104.1
+    
+    data['open'][51] = 104.1
+    data['high'][51] = 104.3
+    data['low'][51] = 103.9
+    data['close'][51] = 104.0
+    
+    data['open'][52] = 103.9  # Swing low bar
+    data['high'][52] = 104.0
+    data['low'][52] = 103.5  # Clear swing low
+    data['close'][52] = 103.8
+    
+    data['open'][53] = 104.0
+    data['high'][53] = 104.2
+    data['low'][53] = 103.9
+    data['close'][53] = 104.1
+    
+    data['open'][54] = 104.1
+    data['high'][54] = 104.3
+    data['low'][54] = 104.0
+    data['close'][54] = 104.2
+    
+    # Now create a liquidity sweep down at index 55
+    data['open'][55] = 104.0
+    data['high'][55] = 104.2
+    data['low'][55] = 102.5  # Breaks the swing low (103.5) with long wick
+    data['close'][55] = 104.1  # Closes back above the swing low
+    
     # Ensure high >= open, close and low <= open, close
     for i in range(n_bars):
         # Skip the pattern indices to preserve our carefully crafted patterns
-        if 10 <= i <= 12 or 20 <= i <= 22 or 25 <= i <= 30 or 32 <= i <= 35 or i == 40 or i == 45:
+        if 10 <= i <= 12 or 20 <= i <= 22 or 25 <= i <= 30 or 32 <= i <= 35 or i == 40 or i == 45 or 50 <= i <= 55:
             continue
         data['high'][i] = max(data['open'][i], data['close'][i], data['high'][i])
         data['low'][i] = min(data['open'][i], data['close'][i], data['low'][i])
@@ -243,6 +313,33 @@ def test_ict_features():
         print("✓ Liquidity sweep down pattern detected at index 35")
     else:
         print("✗ Liquidity sweep down pattern NOT detected at index 35")
+    
+    # Liquidity sweep down at index 55 (new pattern)
+    print("\nDebug data around new Liquidity Sweep Down pattern (indices 52-55):")
+    print(df.loc[52:55, ['open', 'high', 'low', 'close']])
+    
+    # Find the lowest low in the lookback period (excluding current bar)
+    lookback_data = df.loc[45:54]  # Look at indices 45-54 (excluding 55)
+    swing_low = lookback_data['low'].min()
+    swing_low_idx = lookback_data['low'].idxmin()
+    print(f"New Liquidity Sweep Down condition check:")
+    print(f"Full lookback period (indices 45-54) low values:")
+    print(lookback_data['low'])
+    print(f"Swing low in lookback period: {swing_low} at index {swing_low_idx}")
+    print(f"Current bar low ({df.loc[55, 'low']}) < swing_low ({swing_low}): {df.loc[55, 'low'] < swing_low}")
+    print(f"Current bar close ({df.loc[55, 'close']}) > swing_low ({swing_low}): {df.loc[55, 'close'] > swing_low}")
+    
+    # Calculate wick size
+    current_bar = df.loc[55]
+    wick_size = min(current_bar['open'], current_bar['close']) - current_bar['low']
+    total_range = current_bar['high'] - current_bar['low']
+    wick_significant = total_range > 0 and (wick_size / total_range) >= 0.3
+    print(f"Wick size: {wick_size}, Total range: {total_range}, Wick significant: {wick_significant}")
+    
+    if result_df.loc[55, 'ict_liquidity_sweep_down']:
+        print("✓ Liquidity sweep down pattern detected at index 55")
+    else:
+        print("✗ Liquidity sweep down pattern NOT detected at index 55")
     
     # Displacement up at index 40
     if result_df.loc[40, 'ict_displacement_up']:

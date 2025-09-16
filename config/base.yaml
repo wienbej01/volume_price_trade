@@ -41,6 +41,8 @@ features:
   vpa:
     rvol_climax: 2.5
     vdu_threshold: 0.4
+    atr_threshold: 0.5
+    breakout_lookback: 20
 
 time_of_day:
   killzones:

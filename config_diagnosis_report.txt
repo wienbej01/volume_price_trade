@@ -1,0 +1,69 @@
+================================================================================
+CONFIGURATION INTEGRATION DIAGNOSIS REPORT
+================================================================================
+
+1. CONFIGURATION LOADING ANALYSIS
+----------------------------------------
+✅ Base configuration loaded successfully
+   - Config structure: {'features': ['atr_window', 'rvol_windows', 'volume_profile', 'ict', 'vpa'], 'data': ['gcs', 'schema'], 'sessions': ['tz', 'rth_start', 'rth_end', 'eod_flat_minutes_before_close'], 'risk': ['start_equity', 'risk_perc', 'max_trades_per_day', 'atr_stop_mult', 'take_profit_R', 'slippage_cents', 'commission_per_share']}
+✅ No issues found in configuration loading
+
+2. CONFIGURATION PROPAGATION ANALYSIS
+----------------------------------------
+Module: ta_basic
+   - Default columns: ['atr_20', 'rvol_5', 'rvol_20']
+   - Modified columns: ['atr_10', 'rvol_10', 'rvol_30']
+   - Config change effect: ✅ YES
+
+Module: volume_profile
+   - Default bin_size: 0.05
+   - Modified bin_size: 0.1
+   - Config change effect: ❌ NO
+
+Module: ict
+   - Default fvg_min_size_atr: 0.25
+   - Modified fvg_min_size_atr: 0.5
+   - Default FVG up count: 1
+   - Modified FVG up count: 0
+   - Config change effect: ✅ YES
+
+Module: vpa
+   - Default rvol_climax: 2.5
+   - Modified rvol_climax: 3.0
+   - Default climax up count: 2
+   - Modified climax up count: 2
+   - Config change effect: ❌ NO
+
+
+3. FEATURE UNION CONFIGURATION ROUTING ANALYSIS
+----------------------------------------
+   - Shape change: ❌ NO
+   - TA columns changed: ✅ YES
+   - ICT FVG up changed: ❌ NO
+   - VPA climax up changed: ✅ YES
+
+   Detailed results:
+   - Default TA columns: ['atr_20', 'rvol_5', 'rvol_20']
+   - Modified TA columns: ['atr_10', 'rvol_10', 'rvol_30']
+   - Default ICT FVG up count: 1
+   - Modified ICT FVG up count: 1
+   - Default VPA climax up count: 2
+   - Modified VPA climax up count: 4
+   - Column differences: ['rvol_30', 'close_mean_5', 'close_std_5', 'close_mean_20', 'volume_std_5', 'close_max_20', 'volume_mean_10', 'rvol_10', 'volume_std_10', 'close_mean_10', 'volume_mean_30', 'atr_20', 'volume_max_30', 'volume_max_20', 'close_min_20', 'close_min_30', 'volume_max_10', 'volume_min_20', 'rvol_20', 'close_mean_30', 'volume_std_20', 'close_min_5', 'atr_10', 'volume_mean_20', 'close_std_10', 'volume_max_5', 'close_max_30', 'close_max_5', 'volume_mean_5', 'volume_min_5', 'volume_min_30', 'volume_std_30', 'close_min_10', 'rvol_5', 'close_std_20', 'volume_min_10', 'close_std_30', 'close_max_10']
+
+4. ROOT CAUSE ANALYSIS
+----------------------------------------
+✅ Modules working correctly: ['ta_basic', 'ict']
+❌ Modules NOT responding to config changes: ['volume_profile', 'vpa']
+❌ Feature union not routing ICT config changes correctly
+
+5. OVERALL ASSESSMENT
+----------------------------------------
+❌ CONFIGURATION INTEGRATION FAILURE CONFIRMED
+
+Likely root causes:
+   - Individual modules ['volume_profile', 'vpa'] not using config parameters
+   - Feature union not extracting/passing config correctly
+   - Configuration parameters not being propagated through the system
+
+================================================================================

@@ -1,0 +1,57 @@
+================================================================================
+COMPREHENSIVE INTEGRATION TEST SUMMARY
+================================================================================
+
+Overall Status: 3/7 test categories passed
+
+✅ Complete Feature Pipeline: PASSED
+   - Features generated: 68
+   - Expected features: 68
+   - Execution time: 9.19s
+   - NaN count: 773
+   - Future leakage: Yes
+
+Individual Feature Modules:
+✅ ta_basic: PASSED (22 features)
+✅ volume_profile: PASSED (8 features)
+✅ vpa: PASSED (28 features)
+✅ ict: PASSED (32 features)
+✅ time_of_day: PASSED (11 features)
+✅ vwap: PASSED (6 features)
+
+✅ Data Alignment: PASSED
+   - Column order stable: True
+   - Missing data handled: True
+
+❌ Configuration Integration: FAILED
+   - Error: None
+
+Edge Cases:
+✅ small: PASSED
+✅ gaps: PASSED
+✅ zero_volume: PASSED
+✅ constant_prices: PASSED
+✅ extreme_values: PASSED
+
+✅ Performance Test: PASSED
+   - 100 bars: 4.77s
+   - 500 bars: 23.09s
+   - 1000 bars: 46.85s
+
+❌ Existing Tests: FAILED
+   - Return code: 2
+
+ISSUES AND RECOMMENDATIONS:
+----------------------------------------
+Critical Issues:
+   - Future leakage detected - serious data integrity issue
+   - High number of NaN values - may affect model performance
+
+Recommendations:
+   - Review and fix any failed test categories
+   - Monitor NaN values in production
+   - Consider adding more comprehensive unit tests
+   - Document configuration parameters more clearly
+   - Add performance monitoring for large datasets
+
+================================================================================
