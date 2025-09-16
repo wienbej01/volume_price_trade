@@ -4,10 +4,10 @@ version: 0.1.0
 milestones:
   - id: M1
     name: Data & Sessions
-    status: in_progress
+    status: done
   - id: M2
     name: Features v1 (VP/VPA/ICT/ToD)
-    status: pending
+    status: in_progress
   - id: M3
     name: Labels & Dataset
     status: pending
@@ -34,6 +34,14 @@ runs:
     timestamp: "2025-09-15T07:31:11Z"
     status: completed
     notes: "Created PROJECT_PLAN.md and CHANGELOG.md, updated M1 to in_progress"
+  - id: run-0002
+    step: "M1-done"
+    timestamp: "2025-09-15T08:05:47.440Z"
+    notes: "Data loader/calendar/validation implemented"
+  - id: "run-0003"
+    step: "M1-actually-complete"
+    timestamp: "2025-09-16T02:33:46.219Z"
+    notes: "Actually completed M1: implemented missing data module (gcs_loader.py, calendar.py), fixed imports, all core functionality working"
 artifacts:
   - id: A00
     type: "prompt_execution"
@@ -50,3 +58,8 @@ artifacts:
     description: "CHANGELOG.md following Keep a Changelog format"
     timestamp: "2025-09-15T07:31:11Z"
     related_run: "R01"
+  - id: "A03"
+    type: "data_module_implementation"
+    description: "Complete data module with GCS loader and calendar helpers"
+    timestamp: "2025-09-16T02:33:46.219Z"
+    related_run: "run-0003"

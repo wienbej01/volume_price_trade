@@ -111,6 +111,143 @@ class TestValidateBars:
         with pytest.raises(AssertionError, match="contains NaN values"):
             validate_bars(valid_df, valid_config)
     
+    def test_synthetic_bars_monotonic_timestamp(self, valid_config):
+        """Test validation of monotonic timestamp with synthetic bars."""
+        # Create synthetic bar data with monotonic timestamps
+        dates = pd.date_range("2023-06-13 09:30:00", periods=10, freq="1min")
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [100.0 + i * 0.1 for i in range(10)],
+            "high": [100.5 + i * 0.1 for i in range(10)],
+            "low": [99.8 + i * 0.1 for i in range(10)],
+            "close": [100.3 + i * 0.1 for i in range(10)],
+            "volume": [1000 + i * 100 for i in range(10)],
+            "ticker": ["AAPL"] * 10
+        })
+        
+        # Should pass validation
+        validate_bars(df, valid_config)
+        
+        # Make timestamps non-monotonic
+        df.loc[5, "timestamp"] = df.loc[4, "timestamp"]
+        
+        # Should fail validation
+        with pytest.raises(AssertionError, match="Timestamp is not monotonic"):
+            validate_bars(df, valid_config)
+    
+    def test_synthetic_bars_required_columns(self, valid_config):
+        """Test that all required columns exist in synthetic bars."""
+        # Create synthetic bar data with all required columns
+        dates = pd.date_range("2023-06-13 09:30:00", periods=5, freq="1min")
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [100.0, 100.5, 101.0, 100.8, 101.2],
+            "high": [100.5, 101.0, 101.2, 101.1, 101.5],
+            "low": [99.8, 100.2, 100.8, 100.5, 100.9],
+            "close": [100.3, 100.8, 100.9, 100.9, 101.3],
+            "volume": [1000, 1200, 800, 1500, 900],
+            "ticker": ["AAPL"] * 5
+        })
+        
+        # Should pass validation
+        validate_bars(df, valid_config)
+        
+        # Remove each required column one by one and test
+        required_columns = ["timestamp", "open", "high", "low", "close", "volume", "ticker"]
+        
+        for col in required_columns:
+            df_missing = df.drop(columns=[col])
+            with pytest.raises(AssertionError, match=f"Missing required column: {col}"):
+                validate_bars(df_missing, valid_config)
+    
+    def test_synthetic_bars_non_negative_volume(self, valid_config):
+        """Test validation of non-negative volume in synthetic bars."""
+        # Create synthetic bar data with non-negative volume
+        dates = pd.date_range("2023-06-13 09:30:00", periods=5, freq="1min")
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [100.0, 100.5, 101.0, 100.8, 101.2],
+            "high": [100.5, 101.0, 101.2, 101.1, 101.5],
+            "low": [99.8, 100.2, 100.8, 100.5, 100.9],
+            "close": [100.3, 100.8, 100.9, 100.9, 101.3],
+            "volume": [1000, 1200, 800, 1500, 900],  # All non-negative
+            "ticker": ["AAPL"] * 5
+        })
+        
+        # Should pass validation
+        validate_bars(df, valid_config)
+        
+        # Set one volume to negative
+        df.loc[2, "volume"] = -100
+        
+        # Should fail validation
+        with pytest.raises(AssertionError, match="contains negative values"):
+            validate_bars(df, valid_config)
+        
+        # Set one volume to zero (should pass)
+        df.loc[2, "volume"] = 0
+        validate_bars(df, valid_config)  # Should not raise
+    
+    def test_synthetic_bars_price_relationships(self, valid_config):
+        """Test validation of price relationships (high >= low) in synthetic bars."""
+        # Create synthetic bar data with valid price relationships
+        dates = pd.date_range("2023-06-13 09:30:00", periods=5, freq="1min")
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [100.0, 100.5, 101.0, 100.8, 101.2],
+            "high": [100.5, 101.0, 101.2, 101.1, 101.5],  # high >= low
+            "low": [99.8, 100.2, 100.8, 100.5, 100.9],   # low <= high
+            "close": [100.3, 100.8, 100.9, 100.9, 101.3],
+            "volume": [1000, 1200, 800, 1500, 900],
+            "ticker": ["AAPL"] * 5
+        })
+        
+        # Should pass validation
+        validate_bars(df, valid_config)
+        
+        # Make high < low
+        df.loc[2, "high"] = 100.5
+        df.loc[2, "low"] = 101.0
+        
+        # Should fail validation
+        with pytest.raises(AssertionError, match="High price is less than low price"):
+            validate_bars(df, valid_config)
+    
+    def test_synthetic_bars_ticker_column(self, valid_config):
+        """Test validation of ticker column being non-empty string in synthetic bars."""
+        # Create synthetic bar data with valid ticker
+        dates = pd.date_range("2023-06-13 09:30:00", periods=5, freq="1min")
+        df = pd.DataFrame({
+            "timestamp": dates,
+            "open": [100.0, 100.5, 101.0, 100.8, 101.2],
+            "high": [100.5, 101.0, 101.2, 101.1, 101.5],
+            "low": [99.8, 100.2, 100.8, 100.5, 100.9],
+            "close": [100.3, 100.8, 100.9, 100.9, 101.3],
+            "volume": [1000, 1200, 800, 1500, 900],
+            "ticker": ["AAPL"] * 5  # All non-empty strings
+        })
+        
+        # Should pass validation
+        validate_bars(df, valid_config)
+        
+        # Set one ticker to empty string
+        df.loc[2, "ticker"] = ""
+        
+        # Should fail validation
+        with pytest.raises(AssertionError, match="contains empty strings"):
+            validate_bars(df, valid_config)
+        
+        # Set one ticker to NaN
+        df.loc[2, "ticker"] = np.nan
+        
+        # Should fail validation
+        with pytest.raises(AssertionError, match="contains NaN values"):
+            validate_bars(df, valid_config)
+        
+        # Set ticker to valid non-empty string
+        df.loc[2, "ticker"] = "MSFT"
+        validate_bars(df, valid_config)  # Should not raise
+    
     def test_empty_dataframe_fails(self, valid_config):
         """Test that empty DataFrame fails validation."""
         df = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume", "ticker"])
