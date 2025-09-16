@@ -116,8 +116,8 @@ def get_imputation_method(feature_type: FeatureType, feature_name: str = "") -> 
         return ImputationMethod.FORWARD_FILL
 
 def impute_feature(
-    series: pd.Series, 
-    method: ImputationMethod, 
+    series: pd.Series,
+    method: ImputationMethod,
     window: int = 20,
     min_periods: int = 5
 ) -> pd.Series:
@@ -140,14 +140,12 @@ def impute_feature(
     
     try:
         if method == ImputationMethod.FORWARD_FILL:
+            # Safe for time series (no future leakage)
             result = result.ffill()
-            # If there are still NaN values at the beginning, use backward fill
-            if result.isna().sum() > 0:
-                
-                
+
         elif method == ImputationMethod.BACKWARD_FILL:
-            
-            # If there are still NaN values at the end, use forward fill
+            # Not used by default; included for completeness
+            result = result.bfill()
             if result.isna().sum() > 0:
                 result = result.ffill()
                 
@@ -175,43 +173,38 @@ def impute_feature(
             result = result.fillna(0)
             
         elif method == ImputationMethod.ROLLING_MEAN:
-            # Use rolling mean for imputation
+            # Use rolling mean (past-only) for imputation
             rolling_mean = result.rolling(window=window, min_periods=min_periods).mean()
-            # Fill NaN with rolling mean values
             result = result.fillna(rolling_mean)
-            # If there are still NaN values, use forward fill
+            # If there are still NaN values, use forward fill (no backfill to avoid leakage)
             if result.isna().sum() > 0:
                 result = result.ffill()
-                if result.isna().sum() > 0:
-                    
                     
         elif method == ImputationMethod.ROLLING_MEDIAN:
-            # Use rolling median for imputation
+            # Use rolling median (past-only) for imputation
             rolling_median = result.rolling(window=window, min_periods=min_periods).median()
-            # Fill NaN with rolling median values
             result = result.fillna(rolling_median)
-            # If there are still NaN values, use forward fill
+            # If there are still NaN values, use forward fill (no backfill to avoid leakage)
             if result.isna().sum() > 0:
                 result = result.ffill()
-                if result.isna().sum() > 0:
-                    
                     
         elif method == ImputationMethod.INTERPOLATE:
-            # Use linear interpolation
-            result = result.interpolate(method='linear')
-            # If there are still NaN values at the ends, use forward/backward fill
+            # Use time-based interpolation if DatetimeIndex, otherwise linear
+            inferred = getattr(result.index, 'inferred_type', None)
+            interp_method = 'time' if inferred in ('datetime64', 'datetime64tz', 'date') else 'linear'
+            result = result.interpolate(method=interp_method)
+            # If there are still NaN values at the ends, use forward fill only
             if result.isna().sum() > 0:
-                result = result.ffill().bfill()
+                result = result.ffill()
                 
         elif method == ImputationMethod.DROP:
-            # This would drop rows, but we don't want to change the index
-            # So we'll use forward fill instead
-            result = result.ffill().bfill()
+            # We avoid dropping to keep alignment; forward fill instead
+            result = result.ffill()
             
     except Exception as e:
         logger.warning(f"Error applying imputation method {method.value} to series: {e}")
-        # Fallback to forward fill
-        result = result.ffill().bfill()
+        # Fallback to forward fill (no backfill to avoid leakage)
+        result = result.ffill()
     
     return result
 

@@ -7,9 +7,9 @@ Overall Status: 3/7 test categories passed
 ✅ Complete Feature Pipeline: PASSED
    - Features generated: 68
    - Expected features: 68
-   - Execution time: 9.19s
-   - NaN count: 773
-   - Future leakage: Yes
+   - Execution time: 9.29s
+   - NaN count: 266
+   - Future leakage: No
 
 Individual Feature Modules:
 ✅ ta_basic: PASSED (22 features)
@@ -34,9 +34,9 @@ Edge Cases:
 ✅ extreme_values: PASSED
 
 ✅ Performance Test: PASSED
-   - 100 bars: 4.77s
-   - 500 bars: 23.09s
-   - 1000 bars: 46.85s
+   - 100 bars: 4.79s
+   - 500 bars: 22.80s
+   - 1000 bars: 47.16s
 
 ❌ Existing Tests: FAILED
    - Return code: 2
@@ -44,7 +44,6 @@ Edge Cases:
 ISSUES AND RECOMMENDATIONS:
 ----------------------------------------
 Critical Issues:
-   - Future leakage detected - serious data integrity issue
    - High number of NaN values - may affect model performance
 
 Recommendations:

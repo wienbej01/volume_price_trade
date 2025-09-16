@@ -883,3 +883,416 @@
 2025-09-16 05:27:38,358 - __main__ - INFO - Running existing unit tests
 2025-09-16 05:27:40,196 - __main__ - WARNING - Some existing tests failed
 2025-09-16 05:27:40,196 - __main__ - INFO - Generating test summary
+2025-09-16 06:06:54,036 - __main__ - INFO - Starting comprehensive integration tests
+2025-09-16 06:06:54,037 - __main__ - INFO - Creating sample OHLCV data with 200 bars
+2025-09-16 06:06:54,040 - __main__ - INFO - Created sample data with shape: (200, 5)
+2025-09-16 06:06:54,040 - __main__ - INFO - Testing complete feature pipeline
+2025-09-16 06:06:54,041 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:06:54,041 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:06:54,069 - volume_price_trade.features.feature_union - INFO - TA features shape: (200, 27)
+2025-09-16 06:06:54,075 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:06:55,568 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:06:55,568 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:06:55,823 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (200, 13)
+2025-09-16 06:06:55,823 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:06:56,210 - volume_price_trade.features.feature_union - INFO - VPA features shape: (200, 33)
+2025-09-16 06:06:56,211 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:06:58,160 - volume_price_trade.features.feature_union - INFO - ICT features shape: (200, 37)
+2025-09-16 06:06:58,160 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:00,132 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (200, 16)
+2025-09-16 06:07:00,132 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:03,271 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (200, 11)
+2025-09-16 06:07:03,271 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:03,308 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:03,308 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:03,308 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:03,309 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:03,309 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:03,310 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:03,330 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:03,331 - volume_price_trade.utils.nan_imputation - INFO -   Before: 466/12600 (3.70%)
+2025-09-16 06:07:03,331 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/12600 (2.11%)
+2025-09-16 06:07:03,331 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 200 (1.59 percentage points)
+2025-09-16 06:07:03,331 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:03,340 - __main__ - INFO - Pipeline test successful: 68 features generated
+2025-09-16 06:07:03,340 - __main__ - INFO - Testing individual feature modules
+2025-09-16 06:07:03,341 - __main__ - INFO - Testing ta_basic module
+2025-09-16 06:07:03,360 - __main__ - INFO - ta_basic test successful: 22 features generated
+2025-09-16 06:07:03,360 - __main__ - INFO - Testing volume_profile module
+2025-09-16 06:07:04,878 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:04,878 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:05,124 - __main__ - INFO - volume_profile test successful: 8 features generated
+2025-09-16 06:07:05,125 - __main__ - INFO - Testing vpa module
+2025-09-16 06:07:05,528 - __main__ - INFO - vpa test successful: 28 features generated
+2025-09-16 06:07:05,529 - __main__ - INFO - Testing ict module
+2025-09-16 06:07:07,372 - __main__ - INFO - ict test successful: 32 features generated
+2025-09-16 06:07:07,372 - __main__ - INFO - Testing time_of_day module
+2025-09-16 06:07:09,341 - __main__ - INFO - time_of_day test successful: 11 features generated
+2025-09-16 06:07:09,342 - __main__ - INFO - Testing vwap module
+2025-09-16 06:07:12,477 - __main__ - INFO - vwap test successful: 6 features generated
+2025-09-16 06:07:12,478 - __main__ - INFO - Testing data alignment and integration
+2025-09-16 06:07:12,479 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:12,479 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:12,501 - volume_price_trade.features.feature_union - INFO - TA features shape: (200, 27)
+2025-09-16 06:07:12,506 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:14,005 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:14,005 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:14,254 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (200, 13)
+2025-09-16 06:07:14,254 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:14,639 - volume_price_trade.features.feature_union - INFO - VPA features shape: (200, 33)
+2025-09-16 06:07:14,639 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:16,566 - volume_price_trade.features.feature_union - INFO - ICT features shape: (200, 37)
+2025-09-16 06:07:16,566 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:18,572 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (200, 16)
+2025-09-16 06:07:18,572 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:21,698 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (200, 11)
+2025-09-16 06:07:21,698 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:21,743 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:21,743 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:21,743 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:21,744 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:21,744 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:21,745 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:21,767 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:21,767 - volume_price_trade.utils.nan_imputation - INFO -   Before: 466/12600 (3.70%)
+2025-09-16 06:07:21,767 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/12600 (2.11%)
+2025-09-16 06:07:21,767 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 200 (1.59 percentage points)
+2025-09-16 06:07:21,767 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:21,770 - __main__ - INFO - Data alignment test successful
+2025-09-16 06:07:21,770 - __main__ - INFO - Testing configuration integration
+2025-09-16 06:07:21,770 - __main__ - INFO - Testing default configuration
+2025-09-16 06:07:21,770 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:21,770 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:21,789 - volume_price_trade.features.feature_union - INFO - TA features shape: (200, 27)
+2025-09-16 06:07:21,795 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:23,301 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:23,301 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:23,564 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (200, 13)
+2025-09-16 06:07:23,564 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:23,965 - volume_price_trade.features.feature_union - INFO - VPA features shape: (200, 33)
+2025-09-16 06:07:23,966 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:25,949 - volume_price_trade.features.feature_union - INFO - ICT features shape: (200, 37)
+2025-09-16 06:07:25,949 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:27,899 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (200, 16)
+2025-09-16 06:07:27,899 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:31,080 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (200, 11)
+2025-09-16 06:07:31,081 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:31,126 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:31,126 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:31,126 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:31,128 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:31,128 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:31,128 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:31,160 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:31,161 - volume_price_trade.utils.nan_imputation - INFO -   Before: 466/12600 (3.70%)
+2025-09-16 06:07:31,161 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/12600 (2.11%)
+2025-09-16 06:07:31,161 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 200 (1.59 percentage points)
+2025-09-16 06:07:31,161 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:31,161 - __main__ - INFO - Testing modified configuration
+2025-09-16 06:07:31,161 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:31,162 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:31,179 - volume_price_trade.features.feature_union - INFO - TA features shape: (200, 27)
+2025-09-16 06:07:31,184 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:32,680 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:32,680 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:32,938 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (200, 13)
+2025-09-16 06:07:32,938 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:33,333 - volume_price_trade.features.feature_union - INFO - VPA features shape: (200, 33)
+2025-09-16 06:07:33,333 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:35,188 - volume_price_trade.features.feature_union - INFO - ICT features shape: (200, 37)
+2025-09-16 06:07:35,188 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:37,171 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (200, 16)
+2025-09-16 06:07:37,171 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:40,328 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (200, 11)
+2025-09-16 06:07:40,328 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:40,368 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:40,368 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:40,368 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:40,369 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:40,369 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:40,370 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:40,392 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:40,392 - volume_price_trade.utils.nan_imputation - INFO -   Before: 466/12600 (3.70%)
+2025-09-16 06:07:40,392 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/12600 (2.11%)
+2025-09-16 06:07:40,392 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 200 (1.59 percentage points)
+2025-09-16 06:07:40,393 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:40,393 - __main__ - INFO - Testing missing configuration parameters
+2025-09-16 06:07:40,393 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:40,393 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:40,412 - volume_price_trade.features.feature_union - INFO - TA features shape: (200, 27)
+2025-09-16 06:07:40,417 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:41,899 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:41,899 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:42,165 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (200, 13)
+2025-09-16 06:07:42,165 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:42,547 - volume_price_trade.features.feature_union - INFO - VPA features shape: (200, 33)
+2025-09-16 06:07:42,547 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:44,425 - volume_price_trade.features.feature_union - INFO - ICT features shape: (200, 37)
+2025-09-16 06:07:44,425 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:46,413 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (200, 16)
+2025-09-16 06:07:46,413 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:49,580 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (200, 11)
+2025-09-16 06:07:49,580 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:49,619 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:49,619 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:49,620 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:49,621 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:49,621 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:49,622 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:49,644 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:49,644 - volume_price_trade.utils.nan_imputation - INFO -   Before: 466/12600 (3.70%)
+2025-09-16 06:07:49,644 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/12600 (2.11%)
+2025-09-16 06:07:49,645 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 200 (1.59 percentage points)
+2025-09-16 06:07:49,645 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:49,645 - __main__ - WARNING - Some configuration tests failed
+2025-09-16 06:07:49,646 - __main__ - INFO - Testing edge cases
+2025-09-16 06:07:49,646 - __main__ - INFO - Creating edge case datasets
+2025-09-16 06:07:49,646 - __main__ - INFO - Creating sample OHLCV data with 5 bars
+2025-09-16 06:07:49,647 - __main__ - INFO - Created sample data with shape: (5, 5)
+2025-09-16 06:07:49,647 - __main__ - INFO - Creating sample OHLCV data with 50 bars
+2025-09-16 06:07:49,648 - __main__ - INFO - Created sample data with shape: (50, 5)
+2025-09-16 06:07:49,649 - __main__ - INFO - Creating sample OHLCV data with 30 bars
+2025-09-16 06:07:49,650 - __main__ - INFO - Created sample data with shape: (30, 5)
+2025-09-16 06:07:49,650 - __main__ - INFO - Creating sample OHLCV data with 30 bars
+2025-09-16 06:07:49,651 - __main__ - INFO - Created sample data with shape: (30, 5)
+2025-09-16 06:07:49,652 - __main__ - INFO - Creating sample OHLCV data with 30 bars
+2025-09-16 06:07:49,653 - __main__ - INFO - Created sample data with shape: (30, 5)
+2025-09-16 06:07:49,654 - __main__ - INFO - Testing edge case: small
+2025-09-16 06:07:49,654 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:49,654 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:49,673 - volume_price_trade.features.feature_union - INFO - TA features shape: (5, 27)
+2025-09-16 06:07:49,679 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:49,722 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:49,722 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:49,747 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (5, 13)
+2025-09-16 06:07:49,748 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:49,757 - volume_price_trade.features.feature_union - INFO - VPA features shape: (5, 33)
+2025-09-16 06:07:49,758 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:49,784 - volume_price_trade.features.feature_union - INFO - ICT features shape: (5, 37)
+2025-09-16 06:07:49,784 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:49,836 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (5, 16)
+2025-09-16 06:07:49,836 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:49,919 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (5, 11)
+2025-09-16 06:07:49,919 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:49,951 - volume_price_trade.features.feature_union - WARNING - Column atr_20 has NaN values at the end, possible future leakage
+2025-09-16 06:07:49,951 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:49,951 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:49,952 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:49,952 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:49,953 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:49,971 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:49,971 - volume_price_trade.utils.nan_imputation - INFO -   Before: 98/315 (31.11%)
+2025-09-16 06:07:49,971 - volume_price_trade.utils.nan_imputation - INFO -   After:  98/315 (31.11%)
+2025-09-16 06:07:49,971 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 0 (0.00 percentage points)
+2025-09-16 06:07:49,971 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:49,973 - __main__ - INFO - Edge case small test successful
+2025-09-16 06:07:49,973 - __main__ - INFO - Testing edge case: gaps
+2025-09-16 06:07:49,973 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:49,973 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:49,990 - volume_price_trade.features.feature_union - INFO - TA features shape: (40, 27)
+2025-09-16 06:07:49,995 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:50,296 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:50,296 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:50,425 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (40, 13)
+2025-09-16 06:07:50,425 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:50,497 - volume_price_trade.features.feature_union - INFO - VPA features shape: (40, 33)
+2025-09-16 06:07:50,497 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:50,845 - volume_price_trade.features.feature_union - INFO - ICT features shape: (40, 37)
+2025-09-16 06:07:50,845 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:51,247 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (40, 16)
+2025-09-16 06:07:51,247 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:51,870 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (40, 11)
+2025-09-16 06:07:51,870 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:51,922 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:51,923 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:51,924 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:51,924 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:51,943 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:51,943 - volume_price_trade.utils.nan_imputation - INFO -   Before: 266/2520 (10.56%)
+2025-09-16 06:07:51,944 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/2520 (10.56%)
+2025-09-16 06:07:51,944 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 0 (0.00 percentage points)
+2025-09-16 06:07:51,944 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:51,946 - __main__ - INFO - Edge case gaps test successful
+2025-09-16 06:07:51,946 - __main__ - INFO - Testing edge case: zero_volume
+2025-09-16 06:07:51,946 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:51,946 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:51,964 - volume_price_trade.features.feature_union - INFO - TA features shape: (30, 27)
+2025-09-16 06:07:51,971 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:52,200 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:52,200 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:52,234 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (30, 13)
+2025-09-16 06:07:52,234 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:52,286 - volume_price_trade.features.feature_union - INFO - VPA features shape: (30, 33)
+2025-09-16 06:07:52,287 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:52,528 - volume_price_trade.features.feature_union - INFO - ICT features shape: (30, 37)
+2025-09-16 06:07:52,528 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:52,837 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (30, 16)
+2025-09-16 06:07:52,837 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:53,308 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (30, 11)
+2025-09-16 06:07:53,309 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:53,354 - volume_price_trade.features.feature_union - WARNING - Column rvol_5 has NaN values at the end, possible future leakage
+2025-09-16 06:07:53,354 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:53,354 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:53,355 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:53,355 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:53,355 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:53,378 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:53,378 - volume_price_trade.utils.nan_imputation - INFO -   Before: 475/1890 (25.13%)
+2025-09-16 06:07:53,378 - volume_price_trade.utils.nan_imputation - INFO -   After:  475/1890 (25.13%)
+2025-09-16 06:07:53,378 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 0 (0.00 percentage points)
+2025-09-16 06:07:53,378 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:53,380 - __main__ - INFO - Edge case zero_volume test successful
+2025-09-16 06:07:53,381 - __main__ - INFO - Testing edge case: constant_prices
+2025-09-16 06:07:53,381 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:53,381 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:53,398 - volume_price_trade.features.feature_union - INFO - TA features shape: (30, 27)
+2025-09-16 06:07:53,404 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:53,632 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:53,632 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:53,637 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (30, 13)
+2025-09-16 06:07:53,637 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:53,685 - volume_price_trade.features.feature_union - INFO - VPA features shape: (30, 33)
+2025-09-16 06:07:53,685 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:53,947 - volume_price_trade.features.feature_union - INFO - ICT features shape: (30, 37)
+2025-09-16 06:07:53,947 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:54,255 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (30, 16)
+2025-09-16 06:07:54,256 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:54,718 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (30, 11)
+2025-09-16 06:07:54,719 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:54,759 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:07:54,759 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:07:54,759 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:54,760 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:54,761 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:54,761 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:54,782 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:54,783 - volume_price_trade.utils.nan_imputation - INFO -   Before: 397/1890 (21.01%)
+2025-09-16 06:07:54,783 - volume_price_trade.utils.nan_imputation - INFO -   After:  397/1890 (21.01%)
+2025-09-16 06:07:54,783 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 0 (0.00 percentage points)
+2025-09-16 06:07:54,783 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:54,785 - __main__ - INFO - Edge case constant_prices test successful
+2025-09-16 06:07:54,785 - __main__ - INFO - Testing edge case: extreme_values
+2025-09-16 06:07:54,785 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:54,785 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:54,802 - volume_price_trade.features.feature_union - INFO - TA features shape: (30, 27)
+2025-09-16 06:07:54,807 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:55,037 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:55,037 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:55,156 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (30, 13)
+2025-09-16 06:07:55,156 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:55,210 - volume_price_trade.features.feature_union - INFO - VPA features shape: (30, 33)
+2025-09-16 06:07:55,210 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:55,444 - volume_price_trade.features.feature_union - INFO - ICT features shape: (30, 37)
+2025-09-16 06:07:55,444 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:55,741 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (30, 16)
+2025-09-16 06:07:55,741 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:07:56,218 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (30, 11)
+2025-09-16 06:07:56,218 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:07:56,269 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:07:56,271 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:07:56,271 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:07:56,271 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:07:56,292 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:07:56,292 - volume_price_trade.utils.nan_imputation - INFO -   Before: 266/1890 (14.07%)
+2025-09-16 06:07:56,292 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/1890 (14.07%)
+2025-09-16 06:07:56,292 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 0 (0.00 percentage points)
+2025-09-16 06:07:56,293 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:07:56,295 - __main__ - INFO - Edge case extreme_values test successful
+2025-09-16 06:07:56,295 - __main__ - INFO - Running performance test
+2025-09-16 06:07:56,296 - __main__ - INFO - Testing with 100 bars
+2025-09-16 06:07:56,296 - __main__ - INFO - Creating sample OHLCV data with 100 bars
+2025-09-16 06:07:56,297 - __main__ - INFO - Created sample data with shape: (100, 5)
+2025-09-16 06:07:56,297 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:07:56,297 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:07:56,315 - volume_price_trade.features.feature_union - INFO - TA features shape: (100, 27)
+2025-09-16 06:07:56,320 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:07:57,069 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 1
+2025-09-16 06:07:57,069 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:07:57,311 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (100, 13)
+2025-09-16 06:07:57,311 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:07:57,503 - volume_price_trade.features.feature_union - INFO - VPA features shape: (100, 33)
+2025-09-16 06:07:57,503 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:07:58,487 - volume_price_trade.features.feature_union - INFO - ICT features shape: (100, 37)
+2025-09-16 06:07:58,487 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:07:59,458 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (100, 16)
+2025-09-16 06:07:59,458 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:08:01,019 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (100, 11)
+2025-09-16 06:08:01,019 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:08:01,058 - volume_price_trade.features.feature_union - WARNING - Column vp_dist_to_poc_atr has NaN values at the end, possible future leakage
+2025-09-16 06:08:01,058 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:08:01,058 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:08:01,059 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:08:01,060 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:08:01,060 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:08:01,084 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:08:01,084 - volume_price_trade.utils.nan_imputation - INFO -   Before: 288/6300 (4.57%)
+2025-09-16 06:08:01,084 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/6300 (4.22%)
+2025-09-16 06:08:01,084 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 22 (0.35 percentage points)
+2025-09-16 06:08:01,084 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:08:01,088 - __main__ - INFO - Size 100: 4.79s, 0.05MB
+2025-09-16 06:08:01,088 - __main__ - INFO - Testing with 500 bars
+2025-09-16 06:08:01,088 - __main__ - INFO - Creating sample OHLCV data with 500 bars
+2025-09-16 06:08:01,092 - __main__ - INFO - Created sample data with shape: (500, 5)
+2025-09-16 06:08:01,092 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:08:01,092 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:08:01,111 - volume_price_trade.features.feature_union - INFO - TA features shape: (500, 27)
+2025-09-16 06:08:01,117 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:08:04,838 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 2
+2025-09-16 06:08:04,838 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 1
+2025-09-16 06:08:05,446 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (500, 13)
+2025-09-16 06:08:05,446 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:08:06,428 - volume_price_trade.features.feature_union - INFO - VPA features shape: (500, 33)
+2025-09-16 06:08:06,428 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:08:11,211 - volume_price_trade.features.feature_union - INFO - ICT features shape: (500, 37)
+2025-09-16 06:08:11,211 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:08:16,010 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (500, 16)
+2025-09-16 06:08:16,010 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:08:23,831 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (500, 11)
+2025-09-16 06:08:23,831 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:08:23,870 - volume_price_trade.features.feature_union - WARNING - Column vp_poc has NaN values at the end, possible future leakage
+2025-09-16 06:08:23,870 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:08:23,870 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:08:23,871 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:08:23,871 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:08:23,872 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:08:23,894 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:08:23,894 - volume_price_trade.utils.nan_imputation - INFO -   Before: 1066/31500 (3.38%)
+2025-09-16 06:08:23,894 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/31500 (0.84%)
+2025-09-16 06:08:23,894 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 800 (2.54 percentage points)
+2025-09-16 06:08:23,894 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:08:23,898 - __main__ - INFO - Size 500: 22.80s, 0.24MB
+2025-09-16 06:08:23,898 - __main__ - INFO - Testing with 1000 bars
+2025-09-16 06:08:23,898 - __main__ - INFO - Creating sample OHLCV data with 1000 bars
+2025-09-16 06:08:23,902 - __main__ - INFO - Created sample data with shape: (1000, 5)
+2025-09-16 06:08:23,902 - volume_price_trade.features.feature_union - INFO - Building feature matrix
+2025-09-16 06:08:23,902 - volume_price_trade.features.feature_union - INFO - Computing TA features
+2025-09-16 06:08:23,922 - volume_price_trade.features.feature_union - INFO - TA features shape: (1000, 27)
+2025-09-16 06:08:23,927 - volume_price_trade.features.feature_union - INFO - Computing Volume Profile features
+2025-09-16 06:08:31,476 - volume_price_trade.features.volume_profile - WARNING - Insufficient dates for rolling sessions: need 20, have 4
+2025-09-16 06:08:31,476 - volume_price_trade.features.volume_profile - INFO - Adjusted rolling sessions to: 3
+2025-09-16 06:08:33,457 - volume_price_trade.features.feature_union - INFO - Volume Profile features shape: (1000, 13)
+2025-09-16 06:08:33,458 - volume_price_trade.features.feature_union - INFO - Computing VPA features
+2025-09-16 06:08:35,508 - volume_price_trade.features.feature_union - INFO - VPA features shape: (1000, 33)
+2025-09-16 06:08:35,509 - volume_price_trade.features.feature_union - INFO - Computing ICT features
+2025-09-16 06:08:45,602 - volume_price_trade.features.feature_union - INFO - ICT features shape: (1000, 37)
+2025-09-16 06:08:45,602 - volume_price_trade.features.feature_union - INFO - Computing Time of Day features
+2025-09-16 06:08:55,351 - volume_price_trade.features.feature_union - INFO - Time of Day features shape: (1000, 16)
+2025-09-16 06:08:55,351 - volume_price_trade.features.feature_union - INFO - Computing VWAP features
+2025-09-16 06:09:10,995 - volume_price_trade.features.feature_union - INFO - VWAP features shape: (1000, 11)
+2025-09-16 06:09:10,995 - volume_price_trade.features.feature_union - INFO - Aligning features
+2025-09-16 06:09:11,038 - volume_price_trade.features.feature_union - WARNING - Column vp_dist_to_poc_atr has NaN values at the end, possible future leakage
+2025-09-16 06:09:11,038 - volume_price_trade.features.feature_union - WARNING - Potential future leakage detected in feature matrix
+2025-09-16 06:09:11,038 - volume_price_trade.features.feature_union - INFO - Reordering columns
+2025-09-16 06:09:11,039 - volume_price_trade.features.feature_union - INFO - Feature matrix built with 68 features
+2025-09-16 06:09:11,039 - volume_price_trade.features.feature_union - INFO - Applying NaN imputation
+2025-09-16 06:09:11,040 - volume_price_trade.utils.nan_imputation - INFO - Applying NaN imputation to 63 columns
+2025-09-16 06:09:11,062 - volume_price_trade.utils.nan_imputation - INFO - NaN imputation complete:
+2025-09-16 06:09:11,062 - volume_price_trade.utils.nan_imputation - INFO -   Before: 1980/63000 (3.14%)
+2025-09-16 06:09:11,062 - volume_price_trade.utils.nan_imputation - INFO -   After:  266/63000 (0.42%)
+2025-09-16 06:09:11,062 - volume_price_trade.utils.nan_imputation - INFO -   Reduced: 1714 (2.72 percentage points)
+2025-09-16 06:09:11,063 - volume_price_trade.features.feature_union - INFO - Feature matrix construction complete
+2025-09-16 06:09:11,067 - __main__ - INFO - Size 1000: 47.16s, 0.47MB
+2025-09-16 06:09:11,067 - __main__ - INFO - Performance test completed
+2025-09-16 06:09:11,067 - __main__ - INFO - Running existing unit tests
+2025-09-16 06:09:13,123 - __main__ - WARNING - Some existing tests failed
+2025-09-16 06:09:13,124 - __main__ - INFO - Generating test summary
