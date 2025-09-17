@@ -1,0 +1,55 @@
+2025-09-17 05:31:41,200 - vpt.run-213729f8 - INFO - Starting training run run-213729f8
+2025-09-17 05:31:41,209 - vpt.run-213729f8 - INFO - Using sampled data: 5 days from 2025-09-12 to 2025-09-17
+2025-09-17 05:31:41,209 - vpt.run-213729f8 - INFO - Loading dataset...
+2025-09-17 05:35:19,703 - vpt.run-213729f8 - INFO - Dataset loaded: 36 samples, 63 features
+2025-09-17 05:35:19,703 - vpt.run-213729f8 - INFO - Generating cross-validation splits...
+2025-09-17 05:35:19,708 - vpt.run-213729f8 - INFO - Generated 1 CV splits
+2025-09-17 05:35:19,708 - vpt.run-213729f8 - INFO - Training model...
+2025-09-17 05:35:20,311 - vpt.run-213729f8 - ERROR - Error in training run run-213729f8: [05:35:20] /workspace/src/objective/./regression_loss.h:68: Check failed: base_score > 0.0f && base_score < 1.0f: base_score must be in (0,1) for logistic loss, got: 0
+Stack trace:
+  [bt] (0) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x2a6e7c) [0x7c01a44a6e7c]
+  [bt] (1) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0xeda699) [0x7c01a50da699]
+  [bt] (2) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x6826d3) [0x7c01a48826d3]
+  [bt] (3) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x682a9c) [0x7c01a4882a9c]
+  [bt] (4) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x68cfeb) [0x7c01a488cfeb]
+  [bt] (5) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(XGBoosterUpdateOneIter+0x77) [0x7c01a43b6f57]
+  [bt] (6) /lib/x86_64-linux-gnu/libffi.so.8(+0x7b16) [0x7c01d350db16]
+  [bt] (7) /lib/x86_64-linux-gnu/libffi.so.8(+0x43ef) [0x7c01d350a3ef]
+  [bt] (8) /lib/x86_64-linux-gnu/libffi.so.8(ffi_call+0x12e) [0x7c01d350d0be]
+
+
+2025-09-17 05:35:20,312 - vpt.run-213729f8 - ERROR - Traceback (most recent call last):
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/train.py", line 92, in train_model
+    model, metrics = train_xgb(X, y, meta, cv_splits, config)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/models.py", line 96, in train_xgb
+    model.fit(X_train, y_train)
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/core.py", line 729, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/sklearn.py", line 1683, in fit
+    self._Booster = train(
+                    ^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/core.py", line 729, in inner_f
+    return func(**kwargs)
+           ^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/training.py", line 183, in train
+    bst.update(dtrain, iteration=i, fobj=obj)
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/core.py", line 2246, in update
+    _check_call(
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/core.py", line 310, in _check_call
+    raise XGBoostError(py_str(_LIB.XGBGetLastError()))
+xgboost.core.XGBoostError: [05:35:20] /workspace/src/objective/./regression_loss.h:68: Check failed: base_score > 0.0f && base_score < 1.0f: base_score must be in (0,1) for logistic loss, got: 0
+Stack trace:
+  [bt] (0) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x2a6e7c) [0x7c01a44a6e7c]
+  [bt] (1) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0xeda699) [0x7c01a50da699]
+  [bt] (2) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x6826d3) [0x7c01a48826d3]
+  [bt] (3) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x682a9c) [0x7c01a4882a9c]
+  [bt] (4) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(+0x68cfeb) [0x7c01a488cfeb]
+  [bt] (5) /home/jacobwienberg/.local/lib/python3.12/site-packages/xgboost/lib/libxgboost.so(XGBoosterUpdateOneIter+0x77) [0x7c01a43b6f57]
+  [bt] (6) /lib/x86_64-linux-gnu/libffi.so.8(+0x7b16) [0x7c01d350db16]
+  [bt] (7) /lib/x86_64-linux-gnu/libffi.so.8(+0x43ef) [0x7c01d350a3ef]
+  [bt] (8) /lib/x86_64-linux-gnu/libffi.so.8(ffi_call+0x12e) [0x7c01d350d0be]
+
+
+

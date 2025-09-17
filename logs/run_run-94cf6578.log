@@ -1,0 +1,3 @@
+2025-09-17 01:16:01,704 - vpt.run-94cf6578 - INFO - Starting training run run-94cf6578
+2025-09-17 01:16:01,718 - vpt.run-94cf6578 - INFO - Using sampled data: 10 days from 2025-09-07 to 2025-09-17
+2025-09-17 01:16:01,719 - vpt.run-94cf6578 - INFO - Loading dataset...

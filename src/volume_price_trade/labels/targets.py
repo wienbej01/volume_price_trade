@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional, Union
 from ..data.calendar import next_session_close
 from ..features.ta_basic import atr
 
@@ -123,8 +123,8 @@ def triple_barrier_labels(
             label = 'hold'  # Neither barrier was hit (timeout)
             
         # Update the result DataFrame
-        result_df.at[idx, 'y_class'] = label
-        result_df.at[idx, 'horizon_minutes'] = int(actual_horizon.total_seconds() / 60)
-        result_df.at[idx, 'event_end_time'] = event_time
+        result_df.at[idx, 'y_class'] = label  # type: ignore
+        result_df.at[idx, 'horizon_minutes'] = int(actual_horizon.total_seconds() / 60)  # type: ignore
+        result_df.at[idx, 'event_end_time'] = event_time  # type: ignore
     
     return result_df

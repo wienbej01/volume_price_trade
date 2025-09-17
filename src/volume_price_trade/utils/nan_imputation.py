@@ -83,16 +83,16 @@ def get_feature_type(feature_name: str) -> FeatureType:
 def get_imputation_method(feature_type: FeatureType, feature_name: str = "") -> ImputationMethod:
     """
     Get the recommended imputation method for a given feature type.
-    
+
     Args:
         feature_type: Type of the feature
         feature_name: Name of the feature (for special cases)
-        
+
     Returns:
         ImputationMethod enum value
     """
     feature_name_lower = feature_name.lower()
-    
+
     # Special cases
     if 'vp_dist_to_poc_atr' in feature_name_lower:
         return ImputationMethod.ROLLING_MEAN
@@ -111,8 +111,6 @@ def get_imputation_method(feature_type: FeatureType, feature_name: str = "") -> 
     elif feature_type == FeatureType.PRICE_BASED:
         return ImputationMethod.FORWARD_FILL
     elif feature_type == FeatureType.VOLUME_BASED:
-        return ImputationMethod.FORWARD_FILL
-    else:
         return ImputationMethod.FORWARD_FILL
 
 def impute_feature(
@@ -192,7 +190,7 @@ def impute_feature(
             # Use time-based interpolation if DatetimeIndex, otherwise linear
             inferred = getattr(result.index, 'inferred_type', None)
             interp_method = 'time' if inferred in ('datetime64', 'datetime64tz', 'date') else 'linear'
-            result = result.interpolate(method=interp_method)
+            result = result.interpolate(method=interp_method)  # type: ignore
             # If there are still NaN values at the ends, use forward fill only
             if result.isna().sum() > 0:
                 result = result.ffill()

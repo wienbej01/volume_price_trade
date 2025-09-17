@@ -159,10 +159,11 @@ def find_poc(profile: pd.DataFrame) -> float:
     """
     if profile.empty or profile['volume'].sum() == 0:
         return np.nan
-    
-    # Find price with maximum volume
-    poc_row = profile.loc[profile['volume'].idxmax()]
-    return poc_row['price']
+
+    # Find price with maximum volume (return scalar float)
+    poc_idx = profile['volume'].idxmax()
+    poc_price = float(profile.loc[poc_idx, 'price'])
+    return poc_price
 
 
 def find_hvn_lvn(profile: pd.DataFrame, threshold_pct: float = 0.2) -> Tuple[List[float], List[float]]:
@@ -246,13 +247,13 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
     except Exception as e:
         logger.warning(f"Error filtering RTH data: {e}")
         rth_df = df.copy()
-    
+
     if rth_df.empty:
         logger.warning("No RTH data found, returning empty volume profile features")
         return result_df
-    
+
     # Group by date to process each session separately
-    rth_df['date'] = rth_df.index.date
+    rth_df['date'] = pd.to_datetime(rth_df.index).date
     
     # Sort by date
     rth_df = rth_df.sort_index()
@@ -491,7 +492,7 @@ def find_poc_safe(profile: pd.DataFrame) -> float:
             return np.nan
         
         # Find price with maximum volume
-        poc_row = profile.loc[profile['volume'].idxmax()]
+        poc_row = profile.loc[profile['volume'].idxmax()]  # type: ignore
         return poc_row['price']
     except Exception as e:
         logger.warning(f"Error finding POC: {e}")

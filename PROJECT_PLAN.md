@@ -59,7 +59,7 @@ The system is organized into the following modules:
 - CV properly purges overlapping data
 - Holdout validation preserves temporal integrity
 
-### M5: Backtester & Risk
+### M5: Backtester & Risk (COMPLETED)
 **Objectives**:
 - Implement backtester with long/short/hold capabilities
 - Integrate risk management (2% VaR per trade, max 5 trades/day)
@@ -69,6 +69,13 @@ The system is organized into the following modules:
 - Backtester executes trades with proper fills
 - Risk limits are enforced (VaR, max trades)
 - Positions are flattened at EOD
+
+**Status**: All components implemented including:
+- Complete backtest engine with position management
+- Risk management with position sizing based on 2% VaR
+- Fill simulation with slippage and commission modeling
+- Comprehensive metrics calculation
+- HTML and Markdown report generation
 
 ### M6: Reports
 **Objectives**:
@@ -81,7 +88,25 @@ The system is organized into the following modules:
 - Equity curves are properly plotted
 - OOS summary is comprehensive
 
-### M7: Scale-out & Final OOS
+### M6: Reports (IN PROGRESS)
+**Objectives**:
+- Generate trade analytics and equity curves
+- Create model calibration reports
+- Summarize out-of-sample performance
+
+**Acceptance Criteria**:
+- Reports show key performance metrics
+- Equity curves are properly plotted
+- OOS summary is comprehensive
+
+**Status**: Partially implemented:
+- Comprehensive reporting module with HTML and Markdown output
+- Trade analytics and equity curve generation
+- Metrics calculation including drawdowns, Sharpe ratio, etc.
+- Report bundling script for organizing outputs
+- Time-based analysis (time of day, monthly statistics)
+
+### M7: Scale-out & Final OOS (PENDING)
 **Objectives**:
 - Optimize for production deployment
 - Final validation on holdout set

@@ -8,6 +8,7 @@ import logging
 from ..features.feature_union import build_feature_matrix
 from ..labels.targets import triple_barrier_labels
 from ..data.calendar import next_session_close
+from ..data.gcs_loader import load_minute_bars
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ def make_dataset(
             
             # 4. Add metadata
             labeled_df['ticker'] = ticker
-            labeled_df['session_date'] = labeled_df.index.date
+            labeled_df['session_date'] = labeled_df.index.date  # type: ignore[assignment]
             
             # 5. Purge overlapping events and apply embargo
             logger.info(f"Purging overlapping events for {ticker}")
@@ -140,9 +141,6 @@ def _load_bars_for_ticker(ticker: str, start_date: datetime, end_date: datetime)
     """
     Load bars for a specific ticker and date range.
     
-    Note: This is a placeholder function. In a real implementation,
-    this would load from a database, CSV files, or API.
-    
     Args:
         ticker: Ticker symbol
         start_date: Start date
@@ -151,10 +149,30 @@ def _load_bars_for_ticker(ticker: str, start_date: datetime, end_date: datetime)
     Returns:
         DataFrame with OHLCV data
     """
-    # This is a placeholder - actual implementation would depend on data source
-    # For now, return an empty DataFrame
-    logger.warning(f"_load_bars_for_ticker is a placeholder. No data loaded for {ticker}")
-    return pd.DataFrame()
+    try:
+        # Convert datetime objects to string format
+        start_str = start_date.strftime('%Y-%m-%d')
+        end_str = end_date.strftime('%Y-%m-%d')
+        
+        # Load minute bars from GCS
+        bars_df = load_minute_bars(ticker, start_str, end_str)
+        
+        if bars_df.empty:
+            logger.warning(f"No data found for ticker {ticker} between {start_str} and {end_str}")
+            return pd.DataFrame()
+        
+        # Set timestamp as index
+        bars_df = bars_df.set_index('timestamp')
+        
+        logger.info(f"Loaded {len(bars_df)} bars for {ticker} between {start_str} and {end_str}")
+        
+        return bars_df
+        
+    except Exception as e:
+        logger.error(f"Error loading bars for ticker {ticker}: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return pd.DataFrame()
 
 
 def _purge_overlapping_events(

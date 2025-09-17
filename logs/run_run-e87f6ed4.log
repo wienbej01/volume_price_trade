@@ -1,0 +1,9 @@
+2025-09-17 01:12:55,467 - vpt.run-e87f6ed4 - INFO - Starting training run run-e87f6ed4
+2025-09-17 01:12:55,483 - vpt.run-e87f6ed4 - INFO - Using sampled data: 5 days from 2025-09-12 to 2025-09-17
+2025-09-17 01:12:55,483 - vpt.run-e87f6ed4 - INFO - Loading dataset...
+2025-09-17 01:14:25,735 - vpt.run-e87f6ed4 - ERROR - Error in training run run-e87f6ed4: Failed to load dataset - empty features or labels
+2025-09-17 01:14:25,736 - vpt.run-e87f6ed4 - ERROR - Traceback (most recent call last):
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/train.py", line 77, in train_model
+    raise ValueError("Failed to load dataset - empty features or labels")
+ValueError: Failed to load dataset - empty features or labels
+

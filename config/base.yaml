@@ -5,12 +5,12 @@ data:
     root: stocks
     use_gcsfs: true
   schema:
-    timestamp: timestamp
-    open: open
-    high: high
-    low: low
-    close: close
-    volume: volume
+    timestamp: t
+    open: o
+    high: h
+    low: l
+    close: c
+    volume: v
     ticker: ticker
 
 sessions:

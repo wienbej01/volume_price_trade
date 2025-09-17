@@ -1,0 +1,11 @@
+2025-09-17 01:08:02,044 - vpt.run-672034f2 - INFO - Starting training run run-672034f2
+2025-09-17 01:08:02,052 - vpt.run-672034f2 - INFO - Using sampled data: 5 days from 2025-09-12 to 2025-09-17
+2025-09-17 01:08:02,052 - vpt.run-672034f2 - INFO - Loading dataset...
+2025-09-17 01:11:42,488 - vpt.run-672034f2 - INFO - Dataset loaded: 36 samples, 63 features
+2025-09-17 01:11:42,488 - vpt.run-672034f2 - INFO - Generating cross-validation splits...
+2025-09-17 01:11:42,490 - vpt.run-672034f2 - ERROR - Error in training run run-672034f2: No CV splits generated - check data and config
+2025-09-17 01:11:42,491 - vpt.run-672034f2 - ERROR - Traceback (most recent call last):
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/train.py", line 86, in train_model
+    raise ValueError("No CV splits generated - check data and config")
+ValueError: No CV splits generated - check data and config
+

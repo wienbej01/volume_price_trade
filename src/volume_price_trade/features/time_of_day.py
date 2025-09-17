@@ -159,27 +159,27 @@ def compute_time_of_day_features(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     for i, ts in enumerate(timestamps):
         # 1. Minute of day
         mod = minute_of_day(ts)
-        result_df.iloc[i, result_df.columns.get_loc("minute_of_day")] = mod
-        
+        result_df.iloc[i, result_df.columns.get_loc("minute_of_day")] = mod  # type: ignore
+
         # 2. Cyclical encoding
         sin_min, cos_min = cyclical_encoding(mod)
-        result_df.iloc[i, result_df.columns.get_loc("sin_minute")] = sin_min
-        result_df.iloc[i, result_df.columns.get_loc("cos_minute")] = cos_min
-        
+        result_df.iloc[i, result_df.columns.get_loc("sin_minute")] = sin_min  # type: ignore
+        result_df.iloc[i, result_df.columns.get_loc("cos_minute")] = cos_min  # type: ignore
+
         # 3. Hour and minute components
-        result_df.iloc[i, result_df.columns.get_loc("hour_of_day")] = ts.hour
-        result_df.iloc[i, result_df.columns.get_loc("minute_of_hour")] = ts.minute
-        
+        result_df.iloc[i, result_df.columns.get_loc("hour_of_day")] = ts.hour  # type: ignore
+        result_df.iloc[i, result_df.columns.get_loc("minute_of_hour")] = ts.minute  # type: ignore
+
         # 4. RTH flag
-        result_df.iloc[i, result_df.columns.get_loc("is_rth")] = is_rth(ts)
-        
+        result_df.iloc[i, result_df.columns.get_loc("is_rth")] = is_rth(ts)  # type: ignore
+
         # 5. Time to close and since open
-        result_df.iloc[i, result_df.columns.get_loc("time_to_close")] = time_to_market_close(ts, rth_end)
-        result_df.iloc[i, result_df.columns.get_loc("time_since_open")] = time_since_market_open(ts, rth_start)
-        
+        result_df.iloc[i, result_df.columns.get_loc("time_to_close")] = time_to_market_close(ts, rth_end)  # type: ignore
+        result_df.iloc[i, result_df.columns.get_loc("time_since_open")] = time_since_market_open(ts, rth_start)  # type: ignore
+
         # 6. Session flags
         session_flags = is_in_session(ts, session_ranges)
         for session_name, in_session in session_flags.items():
-            result_df.iloc[i, result_df.columns.get_loc(f"is_{session_name}")] = in_session
+            result_df.iloc[i, result_df.columns.get_loc(f"is_{session_name}")] = in_session  # type: ignore
     
     return result_df

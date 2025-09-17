@@ -1,0 +1,28 @@
+2025-09-17 05:35:51,071 - vpt.run-e4e482d4 - INFO - Starting training run run-e4e482d4
+2025-09-17 05:35:51,082 - vpt.run-e4e482d4 - INFO - Using sampled data: 5 days from 2025-09-12 to 2025-09-17
+2025-09-17 05:35:51,082 - vpt.run-e4e482d4 - INFO - Loading dataset...
+2025-09-17 05:39:29,785 - vpt.run-e4e482d4 - INFO - Dataset loaded: 36 samples, 63 features
+2025-09-17 05:39:29,785 - vpt.run-e4e482d4 - INFO - Generating cross-validation splits...
+2025-09-17 05:39:29,791 - vpt.run-e4e482d4 - INFO - Generated 1 CV splits
+2025-09-17 05:39:29,791 - vpt.run-e4e482d4 - INFO - Training model...
+2025-09-17 05:39:30,054 - vpt.run-e4e482d4 - ERROR - Error in training run run-e4e482d4: y_true contains only one label (1). Please provide the list of all expected class labels explicitly through the labels argument.
+2025-09-17 05:39:30,055 - vpt.run-e4e482d4 - ERROR - Traceback (most recent call last):
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/train.py", line 92, in train_model
+    model, metrics = train_xgb(X, y, meta, cv_splits, config)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/models.py", line 115, in train_xgb
+    fold_metrics = _calculate_metrics(y_val, y_pred, y_pred_proba, is_binary)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/volume_price_trade/src/volume_price_trade/ml/models.py", line 165, in _calculate_metrics
+    metrics['log_loss'] = log_loss(y_true, y_pred_proba)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/sklearn/utils/_param_validation.py", line 218, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/sklearn/metrics/_classification.py", line 3240, in log_loss
+    transformed_labels, y_pred = _validate_multiclass_probabilistic_prediction(
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/jacobwienberg/.local/lib/python3.12/site-packages/sklearn/metrics/_classification.py", line 229, in _validate_multiclass_probabilistic_prediction
+    raise ValueError(
+ValueError: y_true contains only one label (1). Please provide the list of all expected class labels explicitly through the labels argument.
+
