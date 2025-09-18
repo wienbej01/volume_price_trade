@@ -16,13 +16,13 @@ logger = logging.getLogger(__name__)
 
 class Position:
     """Represents a trading position."""
-    
-    def __init__(self, ticker: str, entry_time: datetime, entry_price: float, 
+
+    def __init__(self, ticker: str, entry_time: datetime, entry_price: float,
                  shares: int, direction: str, stop_loss: Optional[float] = None,
                  take_profit: Optional[float] = None, max_hold_minutes: Optional[int] = None):
         """
         Initialize a position.
-        
+
         Args:
             ticker: Ticker symbol
             entry_time: Entry timestamp
@@ -41,9 +41,9 @@ class Position:
         self.stop_loss = stop_loss
         self.take_profit = take_profit
         self.max_hold_minutes = max_hold_minutes
-        self.exit_time = None
-        self.exit_price = None
-        self.exit_reason = None
+        self.exit_time: Optional[datetime] = None
+        self.exit_price: Optional[float] = None
+        self.exit_reason: Optional[str] = None
         self.commission = 0.0
         self.slippage = 0.0
         
@@ -61,7 +61,8 @@ class Position:
         """Calculate profit/loss."""
         if self.exit_price is None:
             return 0.0
-            
+
+        assert self.exit_price is not None  # For mypy
         if self.direction == 'long':
             return (self.exit_price - self.entry_price) * self.shares - self.commission
         else:  # short
@@ -71,7 +72,8 @@ class Position:
         """Calculate return as percentage."""
         if self.exit_price is None:
             return 0.0
-            
+
+        assert self.exit_price is not None  # For mypy
         if self.direction == 'long':
             return (self.exit_price - self.entry_price) / self.entry_price * 100
         else:  # short
@@ -81,6 +83,7 @@ class Position:
         """Calculate hold time in minutes."""
         if self.exit_time is None:
             return None
+        assert self.exit_time is not None  # For mypy
         return int((self.exit_time - self.entry_time).total_seconds() / 60)
 
 
@@ -115,10 +118,10 @@ def run_backtest(
     
     # Initialize state
     equity = initial_equity
-    positions = {}  # ticker -> Position
+    positions: Dict[str, Position] = {}  # ticker -> Position
     trades = []
     equity_curve = []
-    daily_trade_count = defaultdict(int)
+    daily_trade_count: Dict[datetime, int] = defaultdict(int)
     
     # Ensure data is sorted by timestamp
     signals_df = signals_df.sort_values('timestamp')
@@ -222,16 +225,15 @@ def run_backtest(
                 entry=bar['open'],
                 stop=stop_loss,
                 risk_perc=risk_per_trade,
-                commission_pct=commission_pct,
-                config=config
+                commission_pct=commission_pct
             )
             
-            shares = position_info['shares']
-            
+            shares = int(position_info['shares'])
+
             # Skip if position size is zero
             if shares == 0:
                 continue
-                
+
             # Create position
             position = Position(
                 ticker=ticker,
@@ -271,69 +273,69 @@ def run_backtest(
             bar = ticker_bar.iloc[0]
             
             # Check if position should be closed
-            exit_reason = None
-            exit_price = None
+            close_reason: Optional[str] = None
+            close_price: Optional[float] = None
             
             # Check stop loss
             if position.stop_loss is not None:
                 if (position.direction == 'long' and bar['low'] <= position.stop_loss) or \
-                   (position.direction == 'short' and bar['high'] >= position.stop_loss):
-                    exit_reason = 'stop_loss'
-                    exit_price = position.stop_loss
-            
+                    (position.direction == 'short' and bar['high'] >= position.stop_loss):
+                    close_reason = 'stop_loss'
+                    close_price = position.stop_loss
+
             # Check take profit
-            if exit_reason is None and position.take_profit is not None:
+            if close_reason is None and position.take_profit is not None:
                 if (position.direction == 'long' and bar['high'] >= position.take_profit) or \
-                   (position.direction == 'short' and bar['low'] <= position.take_profit):
-                    exit_reason = 'take_profit'
-                    exit_price = position.take_profit
-            
+                    (position.direction == 'short' and bar['low'] <= position.take_profit):
+                    close_reason = 'take_profit'
+                    close_price = position.take_profit
+
             # Check max hold time
-            if exit_reason is None and position.max_hold_minutes is not None:
+            if close_reason is None and position.max_hold_minutes is not None:
                 hold_minutes = (timestamp - position.entry_time).total_seconds() / 60
                 if hold_minutes >= position.max_hold_minutes:
-                    exit_reason = 'timeout'
-                    exit_price = get_fill_price(
+                    close_reason = 'timeout'
+                    close_price = get_fill_price(
                         'sell' if position.direction == 'long' else 'buy',
                         bar,
                         mode='current_close',
                         slippage_pct=slippage_pct,
                         config=config
                     )
-            
+
             # Check minimum hold time
-            if exit_reason is not None:
+            if close_reason is not None:
                 hold_minutes = (timestamp - position.entry_time).total_seconds() / 60
                 if hold_minutes < min_hold_minutes:
                     # Don't exit if minimum hold time not reached
-                    exit_reason = None
-                    exit_price = None
-            
+                    close_reason = None
+                    close_price = None
+
             # Close position if needed
-            if exit_reason is not None:
-                if exit_price is None:
+            if close_reason is not None:
+                if close_price is None:
                     # Use market fill price if not set
-                    exit_price = get_fill_price(
+                    close_price = get_fill_price(
                         'sell' if position.direction == 'long' else 'buy',
                         bar,
                         mode='market',
                         slippage_pct=slippage_pct,
                         config=config
                     )
-                
+
                 # Close position
-                position.close(timestamp, exit_price, exit_reason)
-                
+                position.close(timestamp, close_price, close_reason)
+
                 # Update equity
                 equity += position.pnl()
-                
+
                 # Record trade
                 trades.append(_position_to_trade(position))
-                
+
                 # Remove from positions
                 del positions[ticker]
-                
-                logger.debug(f"Closed position {ticker} ({exit_reason}): PnL={position.pnl():.2f}")
+
+                logger.debug(f"Closed position {ticker} ({close_reason}): PnL={position.pnl():.2f}")
         
         # Record equity curve
         equity_curve.append({

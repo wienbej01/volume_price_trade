@@ -108,7 +108,7 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
         
         # Save feature names
         feature_names_path = str(artifacts_dir / "feature_names.json")
-        save_json(list(X.columns), feature_names_path)
+        save_json({"feature_names": list(X.columns)}, feature_names_path)
         
         # Save run metadata
         run_metadata = {

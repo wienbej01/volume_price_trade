@@ -2,7 +2,7 @@
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, Optional, Union
+from typing import Tuple, Dict, Any, Optional, Union, cast
 from ..data.calendar import next_session_close
 from ..features.ta_basic import atr
 
@@ -38,11 +38,17 @@ def triple_barrier_labels(
     """
     # Make a copy of the input DataFrame to avoid modifying the original
     result_df = df.copy()
+    # Ensure index is DatetimeIndex for mypy
+    result_df.index = pd.to_datetime(result_df.index)
     
     # Initialize output columns
     result_df['y_class'] = 'hold'
     result_df['horizon_minutes'] = 0
-    result_df['event_end_time'] = pd.NaT
+    # Initialize event_end_time column with proper timezone-aware dtype
+    if result_df.index.tz is not None:
+        result_df['event_end_time'] = pd.Series([pd.NaT] * len(result_df), index=result_df.index, dtype=f'datetime64[ns, {result_df.index.tz}]')
+    else:
+        result_df['event_end_time'] = pd.NaT
     
     # Calculate ATR for stop loss calculation
     atr_window = 20  # Default ATR window, can be made configurable
@@ -50,38 +56,39 @@ def triple_barrier_labels(
     
     # For each row in the DataFrame
     for i, (idx, row) in enumerate(df.iterrows()):
-        current_time = idx
+        # Ensure idx is Timestamp
+        current_time = pd.Timestamp(idx)  # type: ignore
         current_close = row['close']
         current_atr = atr_series.iloc[i]
-        
+
         # Skip if ATR is NaN
         if np.isnan(current_atr):
             continue
-            
+
         # Calculate stop loss and take profit levels
         stop_loss_points = current_atr * atr_mult_sl
         take_profit_points = stop_loss_points * r_mult_tp
-        
+
         # Define barriers
         upper_barrier = current_close + take_profit_points  # Long TP
         lower_barrier = current_close - stop_loss_points     # Long SL
-        
+
         # Calculate maximum horizon (EOD or specified horizon)
         max_horizon = pd.Timedelta(minutes=horizons_min)
-        
+
         if eod_flat:
             # Get EOD time
             eod_time = next_session_close(current_time)
             eod_horizon = eod_time - current_time
-            
+
             # Use the minimum of specified horizon and EOD horizon
             actual_horizon = min(max_horizon, eod_horizon)
         else:
             actual_horizon = max_horizon
-            
+
         # Get the end time for this horizon
         end_time = current_time + actual_horizon
-        
+
         # Get future data within the horizon
         future_data = df.loc[current_time:end_time]
         
@@ -105,13 +112,13 @@ def triple_barrier_labels(
             # Check if upper barrier is hit
             if not hit_upper and future_high >= upper_barrier:
                 hit_upper = True
-                event_time = future_idx
+                event_time = pd.Timestamp(future_idx)  # type: ignore
                 break  # Exit loop as soon as a barrier is hit
                 
             # Check if lower barrier is hit
             if not hit_lower and future_low <= lower_barrier:
                 hit_lower = True
-                event_time = future_idx
+                event_time = pd.Timestamp(future_idx)  # type: ignore
                 break  # Exit loop as soon as a barrier is hit
         
         # Determine the label based on which barrier was hit
@@ -123,8 +130,10 @@ def triple_barrier_labels(
             label = 'hold'  # Neither barrier was hit (timeout)
             
         # Update the result DataFrame
-        result_df.at[idx, 'y_class'] = label  # type: ignore
-        result_df.at[idx, 'horizon_minutes'] = int(actual_horizon.total_seconds() / 60)  # type: ignore
-        result_df.at[idx, 'event_end_time'] = event_time  # type: ignore
+        idx_ts = pd.Timestamp(idx)  # type: ignore
+        result_df.loc[idx_ts, 'y_class'] = label
+        result_df.loc[idx_ts, 'horizon_minutes'] = int(actual_horizon.total_seconds() / 60)
+        # event_time is already timezone-aware and matches column dtype
+        result_df.loc[idx_ts, 'event_end_time'] = event_time
     
     return result_df

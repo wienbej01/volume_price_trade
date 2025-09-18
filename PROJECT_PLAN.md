@@ -77,7 +77,7 @@ The system is organized into the following modules:
 - Comprehensive metrics calculation
 - HTML and Markdown report generation
 
-### M6: Reports
+### M6: Reports (COMPLETED)
 **Objectives**:
 - Generate trade analytics and equity curves
 - Create model calibration reports
@@ -88,22 +88,11 @@ The system is organized into the following modules:
 - Equity curves are properly plotted
 - OOS summary is comprehensive
 
-### M6: Reports (IN PROGRESS)
-**Objectives**:
-- Generate trade analytics and equity curves
-- Create model calibration reports
-- Summarize out-of-sample performance
-
-**Acceptance Criteria**:
-- Reports show key performance metrics
-- Equity curves are properly plotted
-- OOS summary is comprehensive
-
-**Status**: Partially implemented:
+**Status**: All components implemented including:
 - Comprehensive reporting module with HTML and Markdown output
 - Trade analytics and equity curve generation
 - Metrics calculation including drawdowns, Sharpe ratio, etc.
-- Report bundling script for organizing outputs
+- Report bundling script for organizing outputs (scripts/make_report.py)
 - Time-based analysis (time of day, monthly statistics)
 
 ### M7: Scale-out & Final OOS (PENDING)

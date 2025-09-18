@@ -40,11 +40,15 @@ class TestDatasetBuilder:
         self.start = '2023-01-02'
         self.end = '2023-01-06'
 
-    def test_make_dataset_basic(self):
+    def test_make_dataset_basic(self, monkeypatch):
         """Test basic functionality of make_dataset."""
-        # This test will be limited since _load_bars_for_ticker is a placeholder
-        # In a real implementation, we would mock the data loading
-        
+        # Mock _load_bars_for_ticker to return empty DataFrame
+        # This simulates the case where no data is available for the tickers
+        def mock_load_bars(*args, **kwargs):
+            return pd.DataFrame()
+
+        monkeypatch.setattr('src.volume_price_trade.ml.dataset._load_bars_for_ticker', mock_load_bars)
+
         # Call make_dataset
         X, y, meta = make_dataset(
             self.tickers,
@@ -52,8 +56,8 @@ class TestDatasetBuilder:
             self.end,
             self.config
         )
-        
-        # Since _load_bars_for_ticker is a placeholder, we expect empty results
+
+        # Since no data is loaded, we expect empty results
         assert X.empty
         assert y.empty
         assert meta.empty

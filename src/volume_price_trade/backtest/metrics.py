@@ -170,90 +170,95 @@ def compute_equity_metrics(equity_curve: pd.DataFrame) -> Dict[str, Any]:
 def compute_ticker_stats(trades: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
     Compute statistics per ticker.
-    
+
     Args:
         trades: List of trade dictionaries
-        
+
     Returns:
         Dictionary with ticker as key and stats as value
     """
     if not trades:
         return {}
-    
+
     # Convert to DataFrame
     df = pd.DataFrame(trades)
-    
+
     # Group by ticker
-    ticker_stats = {}
-    
+    ticker_stats: Dict[str, Dict[str, Any]] = {}
+
     for ticker, group in df.groupby('ticker'):
         ticker_trades = group.to_dict('records')
-        ticker_stats[ticker] = compute_trade_stats(ticker_trades)
-    
+        # Ensure ticker is string and ticker_trades has string keys
+        ticker_str = str(ticker)
+        ticker_trades_typed = [{str(k): v for k, v in t.items()} for t in ticker_trades]
+        ticker_stats[ticker_str] = compute_trade_stats(ticker_trades_typed)
+
     return ticker_stats
 
 
 def compute_time_of_day_stats(trades: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
     Compute statistics by time of day.
-    
+
     Args:
         trades: List of trade dictionaries
-        
+
     Returns:
         Dictionary with time period as key and stats as value
     """
     if not trades:
         return {}
-    
+
     # Convert to DataFrame
     df = pd.DataFrame(trades)
-    
+
     # Extract hour from entry time
     df['hour'] = pd.to_datetime(df['entry_time']).dt.hour
-    
+
     # Define time periods
     time_periods = {
         'morning': (9, 11),
         'midday': (11, 14),
         'afternoon': (14, 16)
     }
-    
-    time_stats = {}
-    
+
+    time_stats: Dict[str, Dict[str, Any]] = {}
+
     for period, (start_hour, end_hour) in time_periods.items():
         period_trades = df[(df['hour'] >= start_hour) & (df['hour'] < end_hour)]
-        time_stats[period] = compute_trade_stats(period_trades.to_dict('records'))
-    
+        period_trades_typed = [{str(k): v for k, v in t.items()} for t in period_trades.to_dict('records')]
+        time_stats[period] = compute_trade_stats(period_trades_typed)
+
     return time_stats
 
 
 def compute_monthly_stats(trades: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
     """
     Compute statistics by month.
-    
+
     Args:
         trades: List of trade dictionaries
-        
+
     Returns:
         Dictionary with month as key and stats as value
     """
     if not trades:
         return {}
-    
+
     # Convert to DataFrame
     df = pd.DataFrame(trades)
-    
+
     # Extract year-month from entry time
     df['year_month'] = pd.to_datetime(df['entry_time']).dt.to_period('M')
-    
+
     # Group by month
-    monthly_stats = {}
-    
+    monthly_stats: Dict[str, Dict[str, Any]] = {}
+
     for month, group in df.groupby('year_month'):
         month_trades = group.to_dict('records')
-        monthly_stats[str(month)] = compute_trade_stats(month_trades)
-    
+        month_trades_typed = [{str(k): v for k, v in t.items()} for t in month_trades]
+        monthly_stats[str(month)] = compute_trade_stats(month_trades_typed)
+
     return monthly_stats
 
 

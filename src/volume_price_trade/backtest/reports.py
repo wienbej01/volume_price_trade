@@ -415,18 +415,18 @@ def _generate_plots(bt_result: Dict[str, Any], report_path: str) -> Dict[str, st
             trades_df = pd.DataFrame(bt_result['trades'])
             trades_df['month'] = pd.to_datetime(trades_df['entry_time']).dt.to_period('M')
             monthly_returns = trades_df.groupby('month')['pnl'].sum()
-            
+
             # Reshape to calendar format
-            monthly_returns.index = monthly_returns.index.to_timestamp()
+            monthly_returns.index = monthly_returns.index.to_timestamp()  # type: ignore
             monthly_returns = monthly_returns.resample('M').sum()
-            
+
             # Create year and month columns
-            monthly_returns = monthly_returns.reset_index()
-            monthly_returns['year'] = monthly_returns['entry_time'].dt.year
-            monthly_returns['month'] = monthly_returns['entry_time'].dt.month
-            
+            monthly_returns_df = monthly_returns.reset_index()
+            monthly_returns_df['year'] = monthly_returns_df['entry_time'].dt.year
+            monthly_returns_df['month'] = monthly_returns_df['entry_time'].dt.month
+
             # Pivot to create heatmap data
-            heatmap_data = monthly_returns.pivot(index='year', columns='month', values='pnl')
+            heatmap_data = monthly_returns_df.pivot(index='year', columns='month', values='pnl')
             
             plt.figure(figsize=(12, 8))
             plt.imshow(heatmap_data.values, cmap='RdYlGn', aspect='auto')
@@ -436,9 +436,9 @@ def _generate_plots(bt_result: Dict[str, Any], report_path: str) -> Dict[str, st
             plt.ylabel('Year')
             
             # Set ticks
-            plt.xticks(range(12), ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+            plt.xticks(range(12), ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                   'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
-            plt.yticks(range(len(heatmap_data.index)), heatmap_data.index)
+            plt.yticks(range(len(heatmap_data.index)), heatmap_data.index.astype(str).tolist())
             
             # Add text annotations
             for i in range(len(heatmap_data.index)):
@@ -446,7 +446,7 @@ def _generate_plots(bt_result: Dict[str, Any], report_path: str) -> Dict[str, st
                     value = heatmap_data.iloc[i, j]
                     if not pd.isna(value):
                         plt.text(j, i, f'{value:.0f}', ha='center', va='center',
-                                color='black' if abs(value) < heatmap_data.values.max() / 2 else 'white')
+                                color='black' if abs(float(value)) < heatmap_data.values.max() / 2 else 'white')  # type: ignore
             
             monthly_heatmap_path = plots_dir / "monthly_heatmap.png"
             plt.savefig(monthly_heatmap_path, dpi=150, bbox_inches='tight')

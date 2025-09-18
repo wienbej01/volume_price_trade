@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Complete M3: Labels & Dataset with triple-barrier labeling and EOD truncation
 - Complete M4: ML Baselines & CV with XGBoost/LightGBM models and purged walk-forward validation
 - Complete M5: Backtester & Risk with position management, risk controls, and fill simulation
-- Partial M6: Reports implementation with HTML/Markdown reporting and metrics calculation
+- Complete M6: Reports implementation with HTML/Markdown reporting and metrics calculation
 - Report bundling script for organizing outputs (scripts/make_report.py)
 - Comprehensive trade analytics including equity curves, drawdowns, and performance metrics
 - Time-based analysis (time of day, monthly statistics)

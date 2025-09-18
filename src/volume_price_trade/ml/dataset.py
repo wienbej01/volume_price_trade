@@ -67,6 +67,7 @@ def make_dataset(
             # For now, we'll assume the data is passed in or loaded elsewhere
             # This is a placeholder - actual data loading would depend on the data source
             bars_df = _load_bars_for_ticker(ticker, start_date, end_date)
+            logger.info(f"Loaded bars for {ticker}: shape {bars_df.shape}")
             
             if bars_df.empty:
                 logger.warning(f"No data found for ticker {ticker} between {start} and {end}")
@@ -88,7 +89,7 @@ def make_dataset(
             
             # 4. Add metadata
             labeled_df['ticker'] = ticker
-            labeled_df['session_date'] = labeled_df.index.date  # type: ignore[assignment]
+            labeled_df['session_date'] = pd.to_datetime(labeled_df.index).date
             
             # 5. Purge overlapping events and apply embargo
             logger.info(f"Purging overlapping events for {ticker}")
@@ -133,7 +134,8 @@ def make_dataset(
     all_meta = all_meta.sort_index()
     
     logger.info(f"Dataset construction complete: {len(all_X)} samples, {len(all_X.columns)} features")
-    
+    logger.info(f"Final shapes - X: {all_X.shape}, y: {all_y.shape}, meta: {all_meta.shape}")
+
     return all_X, all_y, all_meta
 
 

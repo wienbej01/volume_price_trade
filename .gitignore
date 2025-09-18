@@ -22,3 +22,17 @@ data/
 .ipynb_checkpoints/
 .vscode/
 .idea/
+
+# Development and temporary files
+analyze_nan_distribution.py
+debug_*.py
+diagnose_*.py
+fix_*.py
+test_*.py
+*_test_results.txt
+*_summary.txt
+*_report.txt
+*.log
+env.sh
+run_prompt_safely.sh
+setup_openrouter_glm45.sh

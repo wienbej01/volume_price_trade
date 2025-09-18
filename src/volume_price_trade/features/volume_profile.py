@@ -150,10 +150,10 @@ def calculate_value_area(profile: pd.DataFrame, value_area_pct: float) -> Tuple[
 def find_poc(profile: pd.DataFrame) -> float:
     """
     Find point of control (price level with highest volume).
-    
+
     Args:
         profile: DataFrame with price and volume data
-        
+
     Returns:
         Price level with highest volume
     """
@@ -162,7 +162,7 @@ def find_poc(profile: pd.DataFrame) -> float:
 
     # Find price with maximum volume (return scalar float)
     poc_idx = profile['volume'].idxmax()
-    poc_price = float(profile.loc[poc_idx, 'price'])
+    poc_price = float(profile.loc[poc_idx, 'price'])  # type: ignore
     return poc_price
 
 
@@ -490,10 +490,11 @@ def find_poc_safe(profile: pd.DataFrame) -> float:
     try:
         if profile.empty or profile['volume'].sum() == 0:
             return np.nan
-        
+
         # Find price with maximum volume
-        poc_row = profile.loc[profile['volume'].idxmax()]  # type: ignore
-        return poc_row['price']
+        poc_idx = profile['volume'].idxmax()
+        poc_row = profile.loc[poc_idx]
+        return float(poc_row['price'])
     except Exception as e:
         logger.warning(f"Error finding POC: {e}")
         return np.nan

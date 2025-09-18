@@ -105,9 +105,9 @@ def train_xgb(
             # Make predictions
             y_pred = model.predict(X_val)
             y_pred_proba = np.asarray(model.predict_proba(X_val))
-            
+
             # Calculate metrics
-            fold_metrics = _calculate_metrics(y_val, y_pred, y_pred_proba, is_binary)
+            fold_metrics = _calculate_metrics(np.asarray(y_val), y_pred, y_pred_proba, is_binary)
             
             # Append fold metrics to overall metrics
             for metric_name, metric_value in fold_metrics.items():
