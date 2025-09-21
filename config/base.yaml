@@ -1,5 +1,8 @@
 project: llm_behavior_trading
 data:
+  use_processed: true
+  use_gcs: true
+  use_polygon: false
   gcs:
     bucket: jwss_data_store
     root: stocks
@@ -61,14 +64,7 @@ cv:
 
 tickers:
   train: [
-    AAPL, MSFT, AMZN, GOOGL, META, NVDA, AMD, INTC, MU, AVGO, NFLX, TSLA, QCOM, TXN, ADI, AMAT,
-    CRM, ORCL, NOW, PANW, SNPS, INTU,
-    HON, GE, LMT, BA, CAT, DE,
-    JPM, BAC, WFC, C, MS, GS,
-    UNH, JNJ, PFE, MRK, ABBV, GILD, AMGN,
-    PG, KO, PEP, COST, WMT, TGT, HD, LOW, NKE, SBUX, MCD, DIS,
-    XOM, CVX, COP, SLB, FCX, NEE,
-    VZ, CMCSA
+    AAPL, MSFT, AMZN, GOOGL, TSLA
   ]
   oos: [
     REGN, LLY, TMO, MDT, BMY, BKNG, MAR, DHI, LEN, PLD, AMT, O, SPG, EOG, DUK, SO, TMUS, KR, AIG, MET

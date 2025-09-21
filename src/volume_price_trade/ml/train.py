@@ -39,6 +39,11 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
     # Set up run-specific logger
     logger = setup_run_logger(run_id)
     logger.info(f"Starting training run {run_id}")
+
+    # Log config and sample days
+    logger.info(f"Using config: {config_path}")
+    if sample_days:
+        logger.info(f"Using sample days: {sample_days}")
     
     # Load configuration
     with open(config_path, 'r') as f:
@@ -55,14 +60,18 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
             raise ValueError("No training tickers found in config")
         
         # Determine date range
-        # For now, use a fixed range - in a real implementation this would come from config
-        end_date = datetime.now().strftime('%Y-%m-%d')
-        start_date = (datetime.now() - pd.DateOffset(years=2)).strftime('%Y-%m-%d')
-        
-        # If sample_days is provided, adjust the date range
+        # End date is last day of previous month to ensure data is available
+        end_date_dt = datetime.now().replace(day=1) - pd.DateOffset(days=1)
+        end_date = end_date_dt.strftime('%Y-%m-%d')
+
+        # If sample_days is provided, adjust the start date
         if sample_days is not None and sample_days > 0:
-            start_date = (datetime.now() - pd.DateOffset(days=sample_days)).strftime('%Y-%m-%d')
+            start_date_dt = end_date_dt - pd.DateOffset(days=sample_days)
+            start_date = start_date_dt.strftime('%Y-%m-%d')
             logger.info(f"Using sampled data: {sample_days} days from {start_date} to {end_date}")
+        else:
+            # Default to 2 years of data
+            start_date = (end_date_dt - pd.DateOffset(years=2)).strftime('%Y-%m-%d')
         
         # Load dataset
         logger.info("Loading dataset...")
@@ -131,6 +140,11 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
         metadata_path = str(artifacts_dir / "run_metadata.json")
         save_json(run_metadata, metadata_path)
         
+        # Log final metrics
+        logger.info("Final metrics:")
+        for metric, value in run_metadata["metrics"].items():
+            logger.info(f"  {metric}: {value:.4f}")
+
         # Update project state
         logger.info("Updating project state...")
         _update_project_state(run_id, run_metadata)

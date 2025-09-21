@@ -11,11 +11,11 @@ import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
 import logging
+import joblib
 
 # Add src to path to import our modules
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from volume_price_trade.ml.predict import load_model, predict
 from volume_price_trade.backtest.engine import run_backtest
 from volume_price_trade.backtest.reports import make_report
 from volume_price_trade.ml.dataset import make_dataset
@@ -49,10 +49,10 @@ def generate_signals(
     logger.info("Generating signals from model predictions...")
     
     # Load model
-    model = load_model(model_path)
+    model = joblib.load(model_path)
     
     # Make predictions
-    predictions = predict(model, X)
+    predictions = model.predict_proba(X)
     
     # Create signals DataFrame
     signals_df = meta[['timestamp', 'ticker']].copy()
@@ -60,9 +60,12 @@ def generate_signals(
     # For binary classification, use positive class probability
     if len(predictions.shape) == 2 and predictions.shape[1] == 2:
         signals_df['signal_strength'] = predictions[:, 1] - 0.5  # Center around 0
+    elif len(predictions.shape) == 2 and predictions.shape[1] > 2:
+        # For multi-class, use the maximum probability minus 1/num_classes
+        signals_df['signal_strength'] = np.max(predictions, axis=1) - (1.0 / predictions.shape[1])
     else:
-        # For regression or multi-class, use the raw predictions
-        signals_df['signal_strength'] = predictions - 0.5  # Center around 0
+        # For regression or single probability, use the raw predictions
+        signals_df['signal_strength'] = predictions.flatten() - 0.5  # Center around 0
     
     # Add ATR if available (for stop loss/take profit calculations)
     if 'atr' in X.columns:
@@ -106,61 +109,29 @@ def prepare_bars_data(
     """
     logger.info("Preparing bars data for backtesting...")
     
-    # This is a simplified implementation
-    # In a real system, you would load actual bar data
-    
-    # For now, we'll create synthetic bars data based on the features
-    # This is just for demonstration purposes
-    
     all_bars = []
     
     for ticker in tickers:
-        # Load dataset for this ticker
         try:
-            X, y, meta = make_dataset(
-                tickers=[ticker],
-                start=start_date,
-                end=end_date,
-                config=config
-            )
+            file_path = Path(f"data/{ticker}.parquet")
+            if not file_path.exists():
+                logger.warning(f"No data found for ticker {ticker} at {file_path}")
+                continue
+
+            bars_df = pd.read_parquet(file_path)
             
-            if X.empty:
-                logger.warning(f"No data found for ticker {ticker}")
+            start_date_dt = pd.to_datetime(start_date).tz_localize('UTC')
+            end_date_dt = pd.to_datetime(end_date).tz_localize('UTC')
+
+            # Filter by date range
+            bars_df = bars_df[(bars_df.index >= start_date_dt) & (bars_df.index <= end_date_dt)]
+
+            if bars_df.empty:
+                logger.warning(f"No data found for ticker {ticker} between {start_date} and {end_date}")
                 continue
             
-            # Extract OHLC data from features if available
-            ohlc_cols = {}
-            for col in X.columns:
-                if 'open' in col.lower():
-                    ohlc_cols['open'] = col
-                elif 'high' in col.lower():
-                    ohlc_cols['high'] = col
-                elif 'low' in col.lower():
-                    ohlc_cols['low'] = col
-                elif 'close' in col.lower():
-                    ohlc_cols['close'] = col
-                elif 'volume' in col.lower():
-                    ohlc_cols['volume'] = col
-            
-            # Create bars DataFrame
-            bars_df = meta[['timestamp', 'ticker']].copy()
-            
-            # Add OHLC data
-            for ohlc_key, col_name in ohlc_cols.items():
-                bars_df[ohlc_key] = X[col_name].values
-            
-            # Fill missing OHLC data with defaults if needed
-            if 'open' not in bars_df.columns:
-                bars_df['open'] = 100.0  # Default price
-            if 'high' not in bars_df.columns:
-                bars_df['high'] = bars_df['open'] * 1.01  # 1% higher
-            if 'low' not in bars_df.columns:
-                bars_df['low'] = bars_df['open'] * 0.99  # 1% lower
-            if 'close' not in bars_df.columns:
-                bars_df['close'] = bars_df['open']  # Same as open
-            if 'volume' not in bars_df.columns:
-                bars_df['volume'] = 10000  # Default volume
-            
+            bars_df['ticker'] = ticker
+            bars_df = bars_df.reset_index()
             all_bars.append(bars_df)
             
         except Exception as e:
@@ -171,7 +142,7 @@ def prepare_bars_data(
         raise ValueError("No bars data could be prepared")
     
     # Combine all bars
-    combined_bars = pd.concat(all_bars, ignore_index=True)
+    combined_bars = pd.concat(all_bars)
     
     logger.info(f"Prepared {len(combined_bars)} bars for backtesting")
     
@@ -215,7 +186,7 @@ def main():
     parser.add_argument(
         "--signal_threshold",
         type=float,
-        default=0.5,
+        default=0.1,
         help="Signal threshold for taking trades (default: 0.5)"
     )
     parser.add_argument(
@@ -312,8 +283,11 @@ def main():
         )
         
         if signals_df.empty:
+            print("No signals were generated. The signals_df is empty.")
             raise ValueError("No signals generated - check model and threshold")
         
+        signals_df = signals_df.reset_index(drop=True)
+
         # Prepare bars data
         bars_df = prepare_bars_data(
             tickers=tickers,
@@ -322,12 +296,17 @@ def main():
             config=config
         )
         
+        # Create backtest config
+        backtest_config = {
+            'backtest': config.get('risk', {})
+        }
+
         # Run backtest
         logger.info("Running backtest...")
         bt_result = run_backtest(
             signals_df=signals_df,
             bars_df=bars_df,
-            config=config
+            config=backtest_config
         )
         
         # Generate report
@@ -357,7 +336,11 @@ def main():
         print(f"Total Trades: {len(bt_result['trades'])}")
         print(f"Total Return: {bt_result['total_return']:.2%}")
         print(f"Sharpe Ratio: {bt_result['config']['backtest'].get('sharpe_ratio', 'N/A')}")
-        print(f"Max Drawdown: {bt_result['config']['backtest'].get('max_drawdown', 'N/A'):.2%}")
+        max_drawdown = bt_result['config']['backtest'].get('max_drawdown', 'N/A')
+        if isinstance(max_drawdown, float):
+            print(f"Max Drawdown: {max_drawdown:.2%}")
+        else:
+            print(f"Max Drawdown: {max_drawdown}")
         print(f"Report saved to: {report_path}")
         print(f"Results saved to: {result_path}")
         

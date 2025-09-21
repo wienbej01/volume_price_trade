@@ -1,0 +1,3 @@
+"""Encodes allowed holding windows and EOD truncation."""
+
+def enumerate_horizons(ts, max_minutes=240): ...

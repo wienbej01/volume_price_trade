@@ -104,6 +104,7 @@ def run_backtest(
         Dictionary with backtest results including trades, equity curve, and metrics
     """
     # Extract configuration
+    from ..data.calendar import next_session_close
     initial_equity = config.get('backtest', {}).get('initial_equity', 100000.0)
     risk_per_trade = config.get('backtest', {}).get('risk_per_trade', 0.02)
     max_trades_per_day = config.get('backtest', {}).get('max_trades_per_day', 10)
@@ -132,7 +133,6 @@ def run_backtest(
     
     # Process each timestamp
     for timestamp in unique_timestamps:
-        # Get signals for this timestamp
         timestamp_signals = signals_df[signals_df['timestamp'] == timestamp]
         
         # Get bars for this timestamp
@@ -142,7 +142,10 @@ def run_backtest(
             continue
             
         # Check if we need to flatten positions at EOD
-        if _is_eod_flatten_time(timestamp, timestamp_bars, eod_flat_minutes_before_close):
+        # Use calendar helper for accurate session close time
+        session_close = next_session_close(timestamp)
+        flatten_time = session_close - timedelta(minutes=eod_flat_minutes_before_close)
+        if timestamp >= flatten_time and timestamp < session_close:
             # Close all open positions
             for ticker, position in list(positions.items()):
                 if position.is_open():
@@ -385,33 +388,7 @@ def run_backtest(
     return result
 
 
-def _is_eod_flatten_time(
-    timestamp: datetime,
-    bars: pd.DataFrame,
-    minutes_before_close: int
-) -> bool:
-    """
-    Check if it's time to flatten positions at end of day.
-    
-    Args:
-        timestamp: Current timestamp
-        bars: DataFrame with bars for current timestamp
-        minutes_before_close: Minutes before market close to flatten
-        
-    Returns:
-        True if it's time to flatten positions
-    """
-    # This is a simplified implementation
-    # In a real system, you would check the actual market close time
-    # For now, we'll assume market closes at 16:00 EST
-    
-    # Get session close time (simplified)
-    session_close = timestamp.replace(hour=16, minute=0, second=0, microsecond=0)
-    
-    # Check if we're within the flatten window
-    flatten_time = session_close - timedelta(minutes=minutes_before_close)
-    
-    return timestamp >= flatten_time and timestamp < session_close
+# Remove the old _is_eod_flatten_time function as it's no longer used
 
 
 def _position_to_trade(position: Position) -> Dict[str, Any]:

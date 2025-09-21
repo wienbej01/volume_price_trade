@@ -217,17 +217,26 @@ def check_future_leakage(feature_df: pd.DataFrame) -> bool:
     return True
 
 
-def build_feature_matrix(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
+def build_feature_matrix(df: pd.DataFrame, cfg: Dict[str, Any], ticker: Optional[str] = None) -> pd.DataFrame:
     """
     Build complete feature matrix from all feature modules.
     
     Args:
         df: DataFrame with OHLCV data and timestamp index
         cfg: Configuration dictionary
+        ticker: Optional ticker for caching
         
     Returns:
         DataFrame with all features aligned by timestamp
     """
+    # Try to load from cache first
+    if ticker:
+        from .cache import load_cached_features
+        cached_df, version_hash = load_cached_features(ticker, cfg)
+        if cached_df is not None:
+            logger.info(f"Using cached features for {ticker}")
+            return cached_df
+
     # Validate input data
     if not validate_input_data(df):
         logger.error("Input data validation failed")
@@ -238,81 +247,162 @@ def build_feature_matrix(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
     # List to store feature DataFrames from each module
     feature_dfs = []
     
-    try:
-        # 1. Compute TA features first (needed by other modules)
-        logger.info("Computing TA features")
-        # Extract TA configuration from features section
-        features_config = cfg.get('features', {})
-        ta_config = {
-            'atr_window': features_config.get('atr_window', 20),
-            'rvol_windows': features_config.get('rvol_windows', [5, 20])
-        }
-        ta_features = compute_ta_features(df, ta_config)
-        logger.info(f"TA features shape: {ta_features.shape}")
-        feature_dfs.append(ta_features)
-        
-        # Create a working DataFrame with TA features for dependent modules
-        working_df = df.copy()
-        ta_feature_cols = [col for col in ta_features.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
-        for col in ta_feature_cols:
-            working_df[col] = ta_features[col]
-        
-        # 2. Compute Volume Profile features
-        logger.info("Computing Volume Profile features")
-        vp_features = compute_volume_profile_features(df, cfg.get('features', {}).get('volume_profile', {}))
-        logger.info(f"Volume Profile features shape: {vp_features.shape}")
-        feature_dfs.append(vp_features)
-        
-        # 3. Compute VPA features (depends on TA features)
-        logger.info("Computing VPA features")
-        try:
-            vpa_features = compute_vpa_features(working_df, cfg.get('vpa', {}))
-            logger.info(f"VPA features shape: {vpa_features.shape}")
-            feature_dfs.append(vpa_features)
-        except Exception as e:
-            logger.error(f"Error computing VPA features: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        # 4. Compute ICT features (depends on TA features)
-        logger.info("Computing ICT features")
-        try:
-            ict_features = compute_ict_features(working_df, cfg.get('features', {}).get('ict', {}))
-            logger.info(f"ICT features shape: {ict_features.shape}")
-            feature_dfs.append(ict_features)
-        except Exception as e:
-            logger.error(f"Error computing ICT features: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        # 5. Compute Time of Day features
-        logger.info("Computing Time of Day features")
-        try:
-            tod_features = compute_time_of_day_features(df, cfg.get('time_of_day', {}))
-            logger.info(f"Time of Day features shape: {tod_features.shape}")
-            feature_dfs.append(tod_features)
-        except Exception as e:
-            logger.error(f"Error computing Time of Day features: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-        # 6. Compute VWAP features
-        logger.info("Computing VWAP features")
-        try:
-            vwap_features = compute_vwap_features(df, cfg.get('vwap', {}))
-            logger.info(f"VWAP features shape: {vwap_features.shape}")
-            feature_dfs.append(vwap_features)
-        except Exception as e:
-            logger.error(f"Error computing VWAP features: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-        
-    except Exception as e:
-        logger.error(f"Error computing features: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        # Return what we have so far
-        pass
+    # 1. Compute TA features first (needed by other modules)
+    logger.info("Computing TA features")
+    # Extract TA configuration from features section
+    features_config = cfg.get('features', {})
+    ta_config = {
+        'atr_window': features_config.get('atr_window', 20),
+        'rvol_windows': features_config.get('rvol_windows', [5, 20])
+    }
+    ta_features = compute_ta_features(df, ta_config)
+    logger.info(f"TA features shape: {ta_features.shape}")
+    feature_dfs.append(ta_features)
+    
+    # Create a working DataFrame with TA features for dependent modules
+    working_df = df.copy()
+    ta_feature_cols = [col for col in ta_features.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
+    for col in ta_feature_cols:
+        working_df[col] = ta_features[col]
+    
+    # 2. Compute Volume Profile features
+    logger.info("Computing Volume Profile features")
+    vp_features = compute_volume_profile_features(df, cfg.get('features', {}).get('volume_profile', {}))
+    logger.info(f"Volume Profile features shape: {vp_features.shape}")
+    feature_dfs.append(vp_features)
+    
+    # 3. Compute VPA features (depends on TA features)
+    logger.info("Computing VPA features")
+    vpa_features = compute_vpa_features(working_df, cfg.get('vpa', {}))
+    logger.info(f"VPA features shape: {vpa_features.shape}")
+    feature_dfs.append(vpa_features)
+    
+    # 4. Compute ICT features (depends on TA features)
+    logger.info("Computing ICT features")
+    ict_features = compute_ict_features(working_df, cfg.get('features', {}).get('ict', {}))
+    logger.info(f"ICT features shape: {ict_features.shape}")
+    feature_dfs.append(ict_features)
+    
+    # 5. Compute Time of Day features
+    logger.info("Computing Time of Day features")
+    tod_features = compute_time_of_day_features(df, cfg.get('time_of_day', {}))
+    logger.info(f"Time of Day features shape: {tod_features.shape}")
+    feature_dfs.append(tod_features)
+    
+    # 6. Compute VWAP features
+    logger.info("Computing VWAP features")
+    vwap_features = compute_vwap_features(df, cfg.get('vwap', {}))
+    logger.info(f"VWAP features shape: {vwap_features.shape}")
+    feature_dfs.append(vwap_features)
+    
+    # Align all features
+    logger.info("Aligning features")
+    feature_matrix = align_features(feature_dfs, df)
+    
+    # Check for future leakage
+    if not check_future_leakage(feature_matrix):
+        logger.warning("Potential future leakage detected in feature matrix")
+    
+    # Reorder columns according to defined order
+    logger.info("Reordering columns")
+    desired_order = get_feature_column_order()
+    
+    # Filter to only include columns that exist in the DataFrame
+    existing_columns = [col for col in desired_order if col in feature_matrix.columns]
+    
+    # Add any columns not in the desired order at the end
+    additional_columns = [col for col in feature_matrix.columns
+                         if col not in existing_columns and col not in ['open', 'high', 'low', 'close', 'volume']]
+    
+    # Create final column order
+    final_column_order = existing_columns + additional_columns
+    
+    # Reorder columns
+    feature_matrix = feature_matrix[final_column_order]
+    
+    logger.info(f"Feature matrix built with {len(feature_matrix.columns)} features")
+    
+    # Apply NaN imputation to reduce overall NaN percentage
+    logger.info("Applying NaN imputation")
+    
+    # Get custom imputation configuration
+    custom_imputation_config = create_custom_imputation_config()
+    
+    # Apply imputation
+    feature_matrix = apply_nan_imputation(
+        feature_matrix,
+        exclude_columns=['open', 'high', 'low', 'close', 'volume'],
+        custom_methods=custom_imputation_config,
+        rolling_window=20,
+        min_periods=5
+    )
+    
+    logger.info("Feature matrix construction complete")
+
+    # Save to cache
+    if ticker:
+        from .cache import save_cached_features, _hash_config
+        version_hash = _hash_config(cfg)
+        save_cached_features(ticker, feature_matrix, cfg, version_hash)
+
+    return feature_matrix
+    # Validate input data
+    if not validate_input_data(df):
+        logger.error("Input data validation failed")
+        return df.copy()
+    
+    logger.info("Building feature matrix")
+    
+    # List to store feature DataFrames from each module
+    feature_dfs = []
+    
+    # 1. Compute TA features first (needed by other modules)
+    logger.info("Computing TA features")
+    # Extract TA configuration from features section
+    features_config = cfg.get('features', {})
+    ta_config = {
+        'atr_window': features_config.get('atr_window', 20),
+        'rvol_windows': features_config.get('rvol_windows', [5, 20])
+    }
+    ta_features = compute_ta_features(df, ta_config)
+    logger.info(f"TA features shape: {ta_features.shape}")
+    feature_dfs.append(ta_features)
+    
+    # Create a working DataFrame with TA features for dependent modules
+    working_df = df.copy()
+    ta_feature_cols = [col for col in ta_features.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
+    for col in ta_feature_cols:
+        working_df[col] = ta_features[col]
+    
+    # 2. Compute Volume Profile features
+    logger.info("Computing Volume Profile features")
+    vp_features = compute_volume_profile_features(df, cfg.get('features', {}).get('volume_profile', {}))
+    logger.info(f"Volume Profile features shape: {vp_features.shape}")
+    feature_dfs.append(vp_features)
+    
+    # 3. Compute VPA features (depends on TA features)
+    logger.info("Computing VPA features")
+    vpa_features = compute_vpa_features(working_df, cfg.get('vpa', {}))
+    logger.info(f"VPA features shape: {vpa_features.shape}")
+    feature_dfs.append(vpa_features)
+    
+    # 4. Compute ICT features (depends on TA features)
+    logger.info("Computing ICT features")
+    ict_features = compute_ict_features(working_df, cfg.get('features', {}).get('ict', {}))
+    logger.info(f"ICT features shape: {ict_features.shape}")
+    feature_dfs.append(ict_features)
+    
+    # 5. Compute Time of Day features
+    logger.info("Computing Time of Day features")
+    tod_features = compute_time_of_day_features(df, cfg.get('time_of_day', {}))
+    logger.info(f"Time of Day features shape: {tod_features.shape}")
+    feature_dfs.append(tod_features)
+    
+    # 6. Compute VWAP features
+    logger.info("Computing VWAP features")
+    vwap_features = compute_vwap_features(df, cfg.get('vwap', {}))
+    logger.info(f"VWAP features shape: {vwap_features.shape}")
+    feature_dfs.append(vwap_features)
     
     # Align all features
     logger.info("Aligning features")

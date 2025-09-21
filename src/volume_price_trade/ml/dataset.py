@@ -9,6 +9,9 @@ from ..features.feature_union import build_feature_matrix
 from ..labels.targets import triple_barrier_labels
 from ..data.calendar import next_session_close
 from ..data.gcs_loader import load_minute_bars
+from pathlib import Path
+
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -56,37 +59,64 @@ def make_dataset(
     r_mult_tp = config.get('risk', {}).get('take_profit_R', 2.0)
     eod_flat_minutes_before_close = config.get('sessions', {}).get('eod_flat_minutes_before_close', 1)
     embargo_days = config.get('cv', {}).get('walk_forward', {}).get('embargo_days', 5)
+    # Data source toggles
+    use_processed = config.get('data', {}).get('use_processed', True)
     
     # Process each ticker
     for ticker in tickers:
-        logger.info(f"Processing ticker: {ticker}")
         
         try:
-            # 1. Load bars for the ticker
-            # Note: In a real implementation, this would load from a database or file
-            # For now, we'll assume the data is passed in or loaded elsewhere
-            # This is a placeholder - actual data loading would depend on the data source
-            bars_df = _load_bars_for_ticker(ticker, start_date, end_date)
-            logger.info(f"Loaded bars for {ticker}: shape {bars_df.shape}")
-            
-            if bars_df.empty:
-                logger.warning(f"No data found for ticker {ticker} between {start} and {end}")
-                continue
+            labeled_df: pd.DataFrame
+
+            # 0. Fast-path: processed_data cache
+            processed_df = pd.DataFrame()
+            if use_processed:
+                processed_df = _load_processed_features(ticker, start_date, end_date)
+                if not processed_df.empty:
+                    logger.info(f"Using processed features for {ticker}: shape {processed_df.shape}")
+
+            if not processed_df.empty:
+                # If labels are included, use directly
+                if 'y_class' in processed_df.columns:
+                    labeled_df = processed_df.copy()
+                else:
+                    # Build labels cheaply from bars and join to processed features
+                    bars_df = _load_bars_for_ticker(ticker, start_date, end_date, config)
+                    if bars_df.empty:
+                        logger.warning(f"No bars available to label processed features for {ticker} between {start} and {end}")
+                        continue
+                    logger.info(f"Generating labels for {ticker} to join with processed features")
+                    labels_only = triple_barrier_labels(
+                        bars_df,
+                        horizons_min=horizons_min,
+                        atr_mult_sl=atr_mult_sl,
+                        r_mult_tp=r_mult_tp,
+                        eod_flat=True
+                    )[["y_class", "horizon_minutes", "event_end_time"]]
+                    labeled_df = processed_df.join(labels_only, how='inner')
+            else:
+                # 1. Load bars for the ticker
+                bars_df = _load_bars_for_ticker(ticker, start_date, end_date, config)
+                logger.info(f"Loaded bars for {ticker}: shape {bars_df.shape}")
                 
-            # 2. Build features
-            logger.info(f"Building features for {ticker}")
-            features_df = build_feature_matrix(bars_df, config)
-            
-            # 3. Generate triple-barrier labels
-            logger.info(f"Generating labels for {ticker}")
-            labeled_df = triple_barrier_labels(
-                features_df,
-                horizons_min=horizons_min,
-                atr_mult_sl=atr_mult_sl,
-                r_mult_tp=r_mult_tp,
-                eod_flat=True
-            )
-            
+                if bars_df.empty:
+                    logger.warning(f"No data found for ticker {ticker} between {start} and {end}")
+                    continue
+                    
+                # 2. Build features
+                logger.info(f"Building features for {ticker}")
+                features_df = build_feature_matrix(bars_df, config)
+                
+                # 3. Generate triple-barrier labels
+                logger.info(f"Generating labels for {ticker}")
+                labeled_df = triple_barrier_labels(
+                    features_df,
+                    horizons_min=horizons_min,
+                    atr_mult_sl=atr_mult_sl,
+                    r_mult_tp=r_mult_tp,
+                    eod_flat=True
+                )
+
             # 4. Add metadata
             labeled_df['ticker'] = ticker
             labeled_df['session_date'] = pd.to_datetime(labeled_df.index).date
@@ -104,11 +134,12 @@ def make_dataset(
             feature_columns = [col for col in purged_df.columns
                              if col not in ['open', 'high', 'low', 'close', 'volume',
                                           'y_class', 'horizon_minutes', 'event_end_time',
-                                          'ticker', 'session_date']]
+                                          'ticker', 'session_date', 'session', 'date_et', 'n', 'vw']]
             
             ticker_X = purged_df[feature_columns]
             ticker_y = purged_df['y_class']
-            ticker_meta = purged_df[['ticker', 'session_date']]
+            ticker_meta = purged_df[['ticker', 'session_date']].copy()
+            ticker_meta['timestamp'] = purged_df.index
             
             # Append to overall results
             all_X = pd.concat([all_X, ticker_X], axis=0)
@@ -139,42 +170,134 @@ def make_dataset(
     return all_X, all_y, all_meta
 
 
-def _load_bars_for_ticker(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+def _load_processed_features(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """
-    Load bars for a specific ticker and date range.
-    
+    Load precomputed feature matrix from processed_data if available.
+
     Args:
         ticker: Ticker symbol
         start_date: Start date
         end_date: End date
-        
+
     Returns:
-        DataFrame with OHLCV data
+        DataFrame with processed features indexed by timestamp, or empty DataFrame
     """
     try:
-        # Convert datetime objects to string format
-        start_str = start_date.strftime('%Y-%m-%d')
-        end_str = end_date.strftime('%Y-%m-%d')
-        
-        # Load minute bars from GCS
-        bars_df = load_minute_bars(ticker, start_str, end_str)
-        
-        if bars_df.empty:
-            logger.warning(f"No data found for ticker {ticker} between {start_str} and {end_str}")
+        file_path = Path(f"processed_data/{ticker}_features.parquet")
+        if not file_path.exists():
             return pd.DataFrame()
-        
-        # Set timestamp as index
-        bars_df = bars_df.set_index('timestamp')
-        
-        logger.info(f"Loaded {len(bars_df)} bars for {ticker} between {start_str} and {end_str}")
-        
-        return bars_df
-        
+
+        df = pd.read_parquet(file_path)
+
+        # Ensure datetime index
+        if not isinstance(df.index, pd.DatetimeIndex):
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df = df.set_index('timestamp')
+            else:
+                df.index = pd.to_datetime(df.index)
+
+        # TZ normalize to UTC
+        if df.index.tz is None:
+            df.index = df.index.tz_localize('UTC')
+        else:
+            df.index = df.index.tz_convert('UTC')
+
+        # Filter by date range
+        start_dt = start_date.tz_localize('UTC')
+        end_dt = end_date.tz_localize('UTC')
+        df = df[(df.index >= start_dt) & (df.index <= end_dt)]
+
+        # Drop duplicate indices if any
+        if df.index.has_duplicates:
+            logger.warning(f"Duplicate timestamps in processed features for {ticker}; dropping duplicates.")
+            df = df[~df.index.duplicated(keep='first')]
+
+        return df
     except Exception as e:
-        logger.error(f"Error loading bars for ticker {ticker}: {e}")
+        logger.error(f"Error loading processed features for {ticker}: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return pd.DataFrame()
+
+
+def _load_bars_for_ticker(ticker: str, start_date: datetime, end_date: datetime, config: Dict[str, Any]) -> pd.DataFrame:
+    """
+    Load bars for a specific ticker and date range with source fallback:
+    data/*.parquet -> GCS -> Polygon.
+    """
+    # Normalize bounds
+    start_utc = start_date.tz_localize('UTC') if start_date.tz is None else start_date.tz_convert('UTC')
+    end_utc = end_date.tz_localize('UTC') if end_date.tz is None else end_date.tz_convert('UTC')
+
+    # 1) Local parquet: data/{ticker}.parquet
+    try:
+        file_path = Path(f"data/{ticker}.parquet")
+        if file_path.exists():
+            bars_df = pd.read_parquet(file_path)
+            logger.info(f"Loaded {len(bars_df)} rows from {file_path}. Head:\n{bars_df.head()}")
+            # Preprocess: tz, sort, dedupe
+            from ..utils.preprocess import preprocess_bars
+            bars_df = preprocess_bars(bars_df, ticker=ticker)
+
+            # Filter by date range
+            bars_df = bars_df[(bars_df.index >= start_utc) & (bars_df.index <= end_utc)]
+
+            if not bars_df.empty:
+                return bars_df
+        else:
+            logger.info(f"Local parquet not found for {ticker} at {file_path}")
+    except Exception as e:
+        logger.warning(f"Local parquet load failed for {ticker}: {e}")
+
+    # 2) GCS fallback via loader if enabled
+    try:
+        use_gcsfs = config.get('data', {}).get('gcs', {}).get('use_gcsfs', True)
+        use_gcs = config.get('data', {}).get('use_gcs', True)
+        if use_gcs and use_gcsfs:
+            logger.info(f"Attempting GCS load for {ticker}")
+            bars_df = load_minute_bars(
+                ticker=ticker,
+                start=start_utc.strftime('%Y-%m-%d'),
+                end=end_utc.strftime('%Y-%m-%d')
+            )
+            if not bars_df.empty:
+                # Preprocess: tz, sort, dedupe
+                from ..utils.preprocess import preprocess_bars
+                bars_df = preprocess_bars(bars_df, ticker=ticker)
+
+                # Filter again to be safe
+                bars_df = bars_df[(bars_df.index >= start_utc) & (bars_df.index <= end_utc)]
+                return bars_df
+            logger.warning(f"GCS returned no data for {ticker} {start_utc}..{end_utc}")
+    except Exception as e:
+        logger.warning(f"GCS load failed for {ticker}: {e}")
+
+    # 3) Polygon fallback if enabled
+    try:
+        use_polygon = config.get('data', {}).get('use_polygon', False)
+        if use_polygon:
+            logger.info(f"Attempting Polygon load for {ticker}")
+            from ..data.polygon_loader import load_minute_bars_polygon
+            bars_df = load_minute_bars_polygon(
+                ticker=ticker,
+                start=start_utc.strftime('%Y-%m-%d'),
+                end=end_utc.strftime('%Y-%m-%d')
+            )
+            if not bars_df.empty:
+                # Preprocess: tz, sort, dedupe
+                from ..utils.preprocess import preprocess_bars
+                bars_df = preprocess_bars(bars_df, ticker=ticker)
+
+                # Filter again to be safe
+                bars_df = bars_df[(bars_df.index >= start_utc) & (bars_df.index <= end_utc)]
+                return bars_df
+            logger.warning(f"Polygon returned no data for {ticker} {start_utc}..{end_utc}")
+    except Exception as e:
+        logger.warning(f"Polygon load failed for {ticker}: {e}")
+
+    logger.warning(f"No bars available for {ticker} after local, GCS, and Polygon fallbacks.")
+    return pd.DataFrame()
 
 
 def _purge_overlapping_events(

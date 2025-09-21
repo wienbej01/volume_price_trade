@@ -1,0 +1,3 @@
+"""Permutation/SHAP importance utilities."""
+
+def permutation_importance(model, X, y): ...

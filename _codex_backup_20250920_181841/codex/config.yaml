@@ -1,0 +1,26 @@
+openai_stream:
+  provider: openai
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  default:
+    model: gpt-4o-mini-2024-07-18
+    stream: true
+    temperature: 0.2
+
+openai_nostream:
+  provider: openai
+  base_url: https://api.openai.com/v1
+  api_key_env: OPENAI_API_KEY
+  default:
+    model: gpt-4o-mini-2024-07-18
+    stream: false
+    temperature: 0.2
+
+openrouter_stream:
+  provider: openrouter
+  base_url: https://openrouter.ai/api/v1
+  api_key_env: OPENROUTER_API_KEY
+  default:
+    model: openai/gpt-4o-mini-2024-07-18
+    stream: true
+    temperature: 0.2

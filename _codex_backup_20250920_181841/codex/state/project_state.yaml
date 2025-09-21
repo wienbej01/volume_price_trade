@@ -1,0 +1,118 @@
+artifacts:
+- description: Execution of persona and policies prompt
+  id: A00
+  related_run: R00
+  timestamp: '2025-09-15T07:29:38Z'
+  type: prompt_execution
+- description: PROJECT_PLAN.md with phased milestones and acceptance criteria
+  id: A01
+  related_run: R01
+  timestamp: '2025-09-15T07:31:11Z'
+  type: project_plan
+- description: CHANGELOG.md following Keep a Changelog format
+  id: A02
+  related_run: R01
+  timestamp: '2025-09-15T07:31:11Z'
+  type: changelog
+- description: Complete data module with GCS loader and calendar helpers
+  id: A03
+  related_run: run-0003
+  timestamp: '2025-09-16T02:33:46.219Z'
+  type: data_module_implementation
+- description: 'Complete M2 feature set with 68 features across 6 modules: TA Basic,
+    Volume Profile, VPA, ICT, Time of Day, and VWAP'
+  id: A04
+  related_run: run-0004
+  timestamp: '2025-09-16T05:06:56Z'
+  type: features_implementation
+- description: 'Complete M3 Labels & Dataset: Triple-barrier labeling system with
+    EOD truncation, dataset builder with purging and embargo, comprehensive tests'
+  id: A05
+  related_run: run-0005
+  timestamp: '2025-09-16T06:39:35Z'
+  type: labels_dataset_implementation
+- description: Trained model with run ID run-bbdead19
+  id: A06
+  related_run: run-bbdead19
+  timestamp: '2025-09-17T05:48:08.161079'
+  type: model_training
+- description: Increased default logging level to DEBUG for enhanced debugging.
+  id: A07
+  related_run: N/A
+  timestamp: '2025-09-20T21:15:42Z'
+  type: config_change
+milestones:
+- id: M1
+  name: Data & Sessions
+  status: done
+- id: M2
+  name: Features v1 (VP/VPA/ICT/ToD)
+  status: done
+- id: M3
+  name: Labels & Dataset
+  status: done
+- id: M4
+  name: ML Baselines & CV
+  status: done
+- id: M5
+  name: Backtester & Risk
+  status: done
+- id: M6
+  name: Reports
+  status: done
+- id: M7
+  name: Scale-out & Final OOS
+  status: done
+project: volume_price_trade
+runs:
+- id: R00
+  notes: Acknowledged role as Head of Quantitative Trading System Development, mission
+    to implement ML backtesting stack, and repository rules
+  prompt: 00_persona_and_policies.md
+  status: completed
+  timestamp: '2025-09-15T07:29:38Z'
+- id: R01
+  notes: Created PROJECT_PLAN.md and CHANGELOG.md, updated M1 to in_progress
+  prompt: 01_project_plan_and_state_update.md
+  status: completed
+  timestamp: '2025-09-15T07:31:11Z'
+- id: run-0002
+  notes: Data loader/calendar/validation implemented
+  step: M1-done
+  timestamp: '2025-09-15T08:05:47.440Z'
+- id: run-0003
+  notes: 'Actually completed M1: implemented missing data module (gcs_loader.py, calendar.py),
+    fixed imports, all core functionality working'
+  step: M1-actually-complete
+  timestamp: '2025-09-16T02:33:46.219Z'
+- id: run-0004
+  notes: 'Completed M2 Features v1: Implemented all 6 feature modules (TA, VP, VPA,
+    ICT, ToD, VWAP) with 68 total features, fixed critical ICT shape doubling bug,
+    comprehensive integration testing completed'
+  step: M2-complete
+  timestamp: '2025-09-16T05:06:56Z'
+- id: run-0005
+  notes: 'Completed M3 Labels & Dataset: Implemented triple-barrier labeling system
+    with EOD truncation, dataset builder with purging and embargo, comprehensive tests
+    for SL/TP/timeout behavior'
+  step: M3-done
+  timestamp: '2025-09-16T06:38:45Z'
+- id: run-0005
+  notes: Baseline model & CV
+  step: M4-done
+  timestamp: '2025-09-17T02:49:30Z'
+- id: run-bbdead19
+  notes: 'Model training run with 36 samples, 63 features, 1 CV folds. Average accuracy:
+    1.0000'
+  step: M4-training
+  timestamp: '2025-09-17T05:48:08.161079'
+version: 0.1.0
+runs:
+- id: run-0006
+  notes: Backtester & metrics
+  step: M5-done
+  timestamp: '2025-09-17T07:21:00Z'
+- id: run-0007
+  notes: Reports & checks
+  step: M6-done
+  timestamp: '2025-09-17T09:06:19Z'

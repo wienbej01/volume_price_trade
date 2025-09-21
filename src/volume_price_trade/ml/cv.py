@@ -74,6 +74,52 @@ def purged_walk_forward_splits(meta_df: pd.DataFrame, config: Dict[str, Any]) ->
     # Fallback to day-count based splits when data is scarce
     use_day_mode = available_days < required_days
 
+    # Ultra-small dataset fallback: random split to ensure class balance
+    if available_days <= 1:
+        logger.warning(f"Tiny dataset for CV; using random 80/20 split to ensure class balance (available_days={available_days})")
+
+        overall_mask = holdout_mask
+        valid_indices = np.where(overall_mask.to_numpy())[0]
+
+        if len(valid_indices) < 2:
+            logger.warning("Not enough valid samples to form a split; skipping CV generation")
+            return
+
+        # Random split with fixed seed for reproducibility
+        np.random.seed(42)  # Deterministic seed
+        np.random.shuffle(valid_indices)
+
+        split_idx = max(1, int(len(valid_indices) * 0.8))
+        train_indices = valid_indices[:split_idx]
+        val_indices = valid_indices[split_idx:]
+
+        logger.info(f"Generated random split: train {len(train_indices)} samples, val {len(val_indices)} samples")
+        yield train_indices, val_indices
+        return
+
+    # Small dataset fallback: single split
+    if available_days < 5:  # e.g., 5 days is too small for walk-forward
+        logger.warning(f"Small dataset for CV; using single 80/20 split (available_days={available_days})")
+
+        overall_mask = holdout_mask
+        valid_indices = np.where(overall_mask.to_numpy())[0]
+
+        if len(valid_indices) < 2:
+            logger.warning("Not enough valid samples to form a split; skipping CV generation")
+            return
+
+        # Random split with fixed seed for reproducibility
+        np.random.seed(42)  # Deterministic seed
+        np.random.shuffle(valid_indices)
+
+        split_idx = max(1, int(len(valid_indices) * 0.8))
+        train_indices = valid_indices[:split_idx]
+        val_indices = valid_indices[split_idx:]
+
+        logger.info(f"Generated single split: train {len(train_indices)} samples, val {len(val_indices)} samples")
+        yield train_indices, val_indices
+        return
+
     if use_day_mode:
         logger.warning(f"Insufficient data for month-based CV; falling back to day-based splits "
                        f"(available_days={available_days}, required_days~{required_days})")
@@ -88,7 +134,31 @@ def purged_walk_forward_splits(meta_df: pd.DataFrame, config: Dict[str, Any]) ->
             spare = available_days - embargo_days - train_days
             val_days = max(1, spare)
 
+        # If we still can't make a single fold, fall back to a simple split
+        if train_days <= 0 or val_days <= 0:
+            logger.warning("Cannot create day-based folds; using simple 80/20 split")
+            
+            overall_mask = holdout_mask
+            valid_indices = np.where(overall_mask.to_numpy())[0]
+
+            if len(valid_indices) < 2:
+                logger.warning("Not enough valid samples to form a split; skipping CV generation")
+                return
+
+            # Random split with fixed seed for reproducibility
+            np.random.seed(42)  # Deterministic seed
+            np.random.shuffle(valid_indices)
+
+            split_idx = max(1, int(len(valid_indices) * 0.8))
+            train_indices = valid_indices[:split_idx]
+            val_indices = valid_indices[split_idx:]
+
+            logger.info(f"Generated simple split: train {len(train_indices)} samples, val {len(val_indices)} samples")
+            yield train_indices, val_indices
+            return
+
         start_idx = 0
+        folds_generated = 0
         while True:
             train_end_idx = start_idx + train_days
             val_start_idx = train_end_idx + embargo_days
@@ -123,8 +193,31 @@ def purged_walk_forward_splits(meta_df: pd.DataFrame, config: Dict[str, Any]) ->
                 f"val {val_start.date()}..{(val_end_excl - pd.Timedelta(days=1)).date()}"
             )
             yield train_indices, val_indices
+            folds_generated += 1
 
             start_idx = val_end_idx
+            
+        # If no folds were generated, fall back to a simple split
+        if folds_generated == 0:
+            logger.warning("No day-based folds generated; using simple 80/20 split")
+            
+            overall_mask = holdout_mask
+            valid_indices = np.where(overall_mask.to_numpy())[0]
+
+            if len(valid_indices) < 2:
+                logger.warning("Not enough valid samples to form a split; skipping CV generation")
+                return
+
+            # Random split with fixed seed for reproducibility
+            np.random.seed(42)  # Deterministic seed
+            np.random.shuffle(valid_indices)
+
+            split_idx = max(1, int(len(valid_indices) * 0.8))
+            train_indices = valid_indices[:split_idx]
+            val_indices = valid_indices[split_idx:]
+
+            logger.info(f"Generated simple split: train {len(train_indices)} samples, val {len(val_indices)} samples")
+            yield train_indices, val_indices
     else:
         # Month-based splits (default path)
         start_date = pd.to_datetime(unique_dates.min())

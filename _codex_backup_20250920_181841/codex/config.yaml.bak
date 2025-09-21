@@ -1,0 +1,28 @@
+profiles:
+  openai_stream:
+    provider: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    default:
+      model: gpt-5
+      stream: true          # SSE on
+      temperature: 0.2
+
+  openai_nostream:
+    provider: openai
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    default:
+      model: gpt-5
+      stream: false         # SSE off
+      temperature: 0.2
+
+  # (optional) keep your OpenRouter profile separate so you don’t mix keys/endpoints
+  openrouter_stream:
+    provider: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    default:
+      model: openai/gpt-5
+      stream: true
+      temperature: 0.2
