@@ -62,6 +62,18 @@ cv:
     embargo_days: 5
   ticker_holdout: 20
 
+model:
+  type: xgboost
+  params:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    tree_method: hist  # Memory efficient for large datasets
+    n_jobs: 8  # Use all 8 cores
+    random_state: 42
+
 tickers:
   train: [
     AAPL, MSFT, AMZN, GOOGL, TSLA
