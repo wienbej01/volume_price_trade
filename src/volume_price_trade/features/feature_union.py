@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Tuple, Optional
 import logging
+import time
 from .ta_basic import compute_ta_features
 from .volume_profile import compute_volume_profile_features
 from .vpa import compute_vpa_features
@@ -251,49 +252,83 @@ def build_feature_matrix(df: pd.DataFrame, cfg: Dict[str, Any], ticker: Optional
     logger.info("Computing TA features")
     # Extract TA configuration from features section
     features_config = cfg.get('features', {})
+    enable_cfg = features_config.get('enable', {})
+    en_ta = bool(enable_cfg.get('ta', True))
+    en_vp = bool(enable_cfg.get('volume_profile', True))
+    en_vpa = bool(enable_cfg.get('vpa', True))
+    en_ict = bool(enable_cfg.get('ict', True))
+    en_tod = bool(enable_cfg.get('time_of_day', True))
+    en_vwap = bool(enable_cfg.get('vwap', True))
+
     ta_config = {
         'atr_window': features_config.get('atr_window', 20),
         'rvol_windows': features_config.get('rvol_windows', [5, 20])
     }
-    ta_features = compute_ta_features(df, ta_config)
-    logger.info(f"TA features shape: {ta_features.shape}")
-    feature_dfs.append(ta_features)
-    
+
     # Create a working DataFrame with TA features for dependent modules
     working_df = df.copy()
-    ta_feature_cols = [col for col in ta_features.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
-    for col in ta_feature_cols:
-        working_df[col] = ta_features[col]
+
+    if en_ta:
+        t0 = time.perf_counter()
+        ta_features = compute_ta_features(df, ta_config)
+        logger.info(f"TA features shape: {ta_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(ta_features)
+
+        ta_feature_cols = [col for col in ta_features.columns if col not in ['open', 'high', 'low', 'close', 'volume']]
+        for col in ta_feature_cols:
+            working_df[col] = ta_features[col]
+    else:
+        logger.info("TA features disabled via config")
     
     # 2. Compute Volume Profile features
-    logger.info("Computing Volume Profile features")
-    vp_features = compute_volume_profile_features(df, cfg.get('features', {}).get('volume_profile', {}))
-    logger.info(f"Volume Profile features shape: {vp_features.shape}")
-    feature_dfs.append(vp_features)
+    if en_vp:
+        logger.info("Computing Volume Profile features")
+        t0 = time.perf_counter()
+        vp_features = compute_volume_profile_features(df, cfg.get('features', {}).get('volume_profile', {}))
+        logger.info(f"Volume Profile features shape: {vp_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(vp_features)
+    else:
+        logger.info("Volume Profile features disabled via config")
     
     # 3. Compute VPA features (depends on TA features)
-    logger.info("Computing VPA features")
-    vpa_features = compute_vpa_features(working_df, cfg.get('vpa', {}))
-    logger.info(f"VPA features shape: {vpa_features.shape}")
-    feature_dfs.append(vpa_features)
+    if en_vpa:
+        logger.info("Computing VPA features")
+        t0 = time.perf_counter()
+        vpa_features = compute_vpa_features(working_df, cfg.get('vpa', {}))
+        logger.info(f"VPA features shape: {vpa_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(vpa_features)
+    else:
+        logger.info("VPA features disabled via config")
     
     # 4. Compute ICT features (depends on TA features)
-    logger.info("Computing ICT features")
-    ict_features = compute_ict_features(working_df, cfg.get('features', {}).get('ict', {}))
-    logger.info(f"ICT features shape: {ict_features.shape}")
-    feature_dfs.append(ict_features)
+    if en_ict:
+        logger.info("Computing ICT features")
+        t0 = time.perf_counter()
+        ict_features = compute_ict_features(working_df, cfg.get('features', {}).get('ict', {}))
+        logger.info(f"ICT features shape: {ict_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(ict_features)
+    else:
+        logger.info("ICT features disabled via config")
     
     # 5. Compute Time of Day features
-    logger.info("Computing Time of Day features")
-    tod_features = compute_time_of_day_features(df, cfg.get('time_of_day', {}))
-    logger.info(f"Time of Day features shape: {tod_features.shape}")
-    feature_dfs.append(tod_features)
+    if en_tod:
+        logger.info("Computing Time of Day features")
+        t0 = time.perf_counter()
+        tod_features = compute_time_of_day_features(df, cfg.get('time_of_day', {}))
+        logger.info(f"Time of Day features shape: {tod_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(tod_features)
+    else:
+        logger.info("Time of Day features disabled via config")
     
     # 6. Compute VWAP features
-    logger.info("Computing VWAP features")
-    vwap_features = compute_vwap_features(df, cfg.get('vwap', {}))
-    logger.info(f"VWAP features shape: {vwap_features.shape}")
-    feature_dfs.append(vwap_features)
+    if en_vwap:
+        logger.info("Computing VWAP features")
+        t0 = time.perf_counter()
+        vwap_features = compute_vwap_features(df, cfg.get('vwap', {}))
+        logger.info(f"VWAP features shape: {vwap_features.shape} (took {time.perf_counter()-t0:.2f}s)")
+        feature_dfs.append(vwap_features)
+    else:
+        logger.info("VWAP features disabled via config")
     
     # Align all features
     logger.info("Aligning features")

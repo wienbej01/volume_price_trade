@@ -5,6 +5,7 @@ import numpy as np
 from typing import Tuple, Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import logging
+import time
 from ..features.feature_union import build_feature_matrix
 from ..labels.targets import triple_barrier_labels
 from ..data.calendar import next_session_close
@@ -61,11 +62,14 @@ def make_dataset(
     embargo_days = config.get('cv', {}).get('walk_forward', {}).get('embargo_days', 5)
     # Data source toggles
     use_processed = config.get('data', {}).get('use_processed', True)
+    event_stride = int(config.get('data', {}).get('event_stride_minutes', 1) or 1)
     
     # Process each ticker
-    for ticker in tickers:
+    for i, ticker in enumerate(tickers, 1):
         
         try:
+            t0_ticker = time.perf_counter()
+            logger.info(f"[{i}/{len(tickers)}] Start {ticker}")
             labeled_df: pd.DataFrame
 
             # 0. Fast-path: processed_data cache
@@ -104,11 +108,14 @@ def make_dataset(
                     continue
                     
                 # 2. Build features
-                logger.info(f"Building features for {ticker}")
-                features_df = build_feature_matrix(bars_df, config)
+                logger.info(f"[{i}/{len(tickers)}] Building features for {ticker}")
+                t_feat = time.perf_counter()
+                features_df = build_feature_matrix(bars_df, config, ticker=ticker)
+                logger.info(f"[{i}/{len(tickers)}] Built features for {ticker} in {time.perf_counter()-t_feat:.2f}s shape={features_df.shape}")
                 
                 # 3. Generate triple-barrier labels
-                logger.info(f"Generating labels for {ticker}")
+                logger.info(f"[{i}/{len(tickers)}] Generating labels for {ticker}")
+                t_lab = time.perf_counter()
                 labeled_df = triple_barrier_labels(
                     features_df,
                     horizons_min=horizons_min,
@@ -116,18 +123,29 @@ def make_dataset(
                     r_mult_tp=r_mult_tp,
                     eod_flat=True
                 )
+                logger.info(f"[{i}/{len(tickers)}] Labels generated for {ticker} in {time.perf_counter()-t_lab:.2f}s shape={labeled_df.shape}")
 
-            # 4. Add metadata
+            # 4. Optional event stride downsampling to reduce event starts (speeds purging)
+            if 'event_stride' not in locals():
+                event_stride = int(config.get('data', {}).get('event_stride_minutes', 1) or 1)
+            if event_stride > 1:
+                orig_len = len(labeled_df)
+                labeled_df = labeled_df.iloc[::event_stride]
+                logger.info(f"Applied event_stride_minutes={event_stride} for {ticker}: {orig_len} -> {len(labeled_df)} rows")
+
+            # 5. Add metadata
             labeled_df['ticker'] = ticker
             labeled_df['session_date'] = pd.to_datetime(labeled_df.index).date
             
             # 5. Purge overlapping events and apply embargo
-            logger.info(f"Purging overlapping events for {ticker}")
+            logger.info(f"[{i}/{len(tickers)}] Purging overlapping events for {ticker}")
+            t_purge = time.perf_counter()
             purged_df = _purge_overlapping_events(
                 labeled_df,
                 embargo_days=embargo_days,
                 horizon_minutes=horizons_min
             )
+            logger.info(f"[{i}/{len(tickers)}] Purge complete for {ticker} in {time.perf_counter()-t_purge:.2f}s -> {len(purged_df)} rows")
             
             # 6. Extract X, y, and meta
             # X contains all feature columns (exclude OHLCV and label columns)
@@ -146,7 +164,7 @@ def make_dataset(
             all_y = pd.concat([all_y, ticker_y], axis=0)
             all_meta = pd.concat([all_meta, ticker_meta], axis=0)
             
-            logger.info(f"Completed processing for {ticker}: {len(ticker_X)} samples")
+            logger.info(f"[{i}/{len(tickers)}] Completed {ticker}: {len(ticker_X)} samples in {time.perf_counter()-t0_ticker:.2f}s")
             
         except Exception as e:
             logger.error(f"Error processing ticker {ticker}: {e}")
@@ -306,46 +324,45 @@ def _purge_overlapping_events(
     horizon_minutes: int
 ) -> pd.DataFrame:
     """
-    Purge overlapping events and apply embargo.
-    
-    Args:
-        df: DataFrame with labels and event times
-        embargo_days: Number of days to embargo after each event
-        horizon_minutes: Horizon in minutes for each event
-        
-    Returns:
-        DataFrame with purged events
+    Greedy, vectorized-style purge of overlapping events with embargo.
+    Keeps the earliest event, then skips subsequent starts until the previous
+    event's (end + embargo) time is passed.
+
+    Significantly faster than iterrows-based approach on large datasets.
     """
     if df.empty:
         return df.copy()
-    
-    # Sort by index (timestamp)
+
+    # Sort once
     df_sorted = df.sort_index()
-    
-    # Initialize list to keep track of non-overlapping events
-    keep_indices = []
-    
-    # Track the last event end time + embargo
-    last_embargo_end = None
-    
-    # Iterate through each event
-    for idx, row in df_sorted.iterrows():
-        event_end_time = row['event_end_time']
-        
-        # Skip if event_end_time is NaT
-        if pd.isna(event_end_time):
-            keep_indices.append(idx)
-            continue
-            
-        # Calculate embargo period
-        embargo_end = event_end_time + pd.Timedelta(days=embargo_days)
-        
-        # If this is the first event or after the last event's embargo period
-        if last_embargo_end is None or idx >= last_embargo_end:
-            keep_indices.append(idx)
-            last_embargo_end = embargo_end
-    
-    # Return DataFrame with only non-overlapping events
-    purged_df = df_sorted.loc[keep_indices]
-    
+
+    # Effective event end time: fill NaT with (start + horizon)
+    effective_end = df_sorted['event_end_time'].copy()
+    fallback_end = df_sorted.index + pd.to_timedelta(horizon_minutes, unit='m')
+    effective_end = effective_end.where(~effective_end.isna(), fallback_end)
+
+    embargo_delta = pd.to_timedelta(embargo_days, unit='D')
+    embargo_end = effective_end + embargo_delta
+
+    # Convert to int64 nanoseconds in UTC-naive for fast comparisons
+    idx = df_sorted.index
+    if idx.tz is not None:
+        idx_ns = idx.tz_convert('UTC').tz_localize(None).view('int64')
+        end_ns = effective_end.dt.tz_convert('UTC').dt.tz_localize(None).astype('int64')
+        embargo_end_ns = embargo_end.dt.tz_convert('UTC').dt.tz_localize(None).astype('int64')
+    else:
+        idx_ns = idx.view('int64')
+        end_ns = effective_end.astype('int64')
+        embargo_end_ns = embargo_end.astype('int64')
+
+    keep = np.zeros(len(df_sorted), dtype=bool)
+    last_ns = np.int64(-2**63)  # effectively -inf
+
+    # Greedy selection in pure Python loop over arrays (fast)
+    for i in range(len(idx_ns)):
+        if idx_ns[i] >= last_ns:
+            keep[i] = True
+            last_ns = embargo_end_ns[i]
+
+    purged_df = df_sorted.iloc[keep]
     return purged_df

@@ -3,6 +3,7 @@ data:
   use_processed: true
   use_gcs: true
   use_polygon: false
+  event_stride_minutes: 5
   gcs:
     bucket: jwss_data_store
     root: stocks
@@ -46,6 +47,13 @@ features:
     vdu_threshold: 0.4
     atr_threshold: 0.5
     breakout_lookback: 20
+  enable:
+    ta: true
+    volume_profile: false
+    vpa: true
+    ict: true
+    time_of_day: true
+    vwap: true
 
 time_of_day:
   killzones:

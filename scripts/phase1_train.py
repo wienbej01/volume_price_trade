@@ -21,8 +21,7 @@ def main():
 
     result = train_model(config_path=config_path, sample_days=None)
 
-    print("
-Training completed!")
+    print("\nTraining completed!")
     print(f"Run ID: {result['run_id']}")
     print(f"Samples: {result['n_samples']}")
     print(f"Features: {result['n_features']}")
