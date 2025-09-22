@@ -344,16 +344,14 @@ def _purge_overlapping_events(
     embargo_delta = pd.to_timedelta(embargo_days, unit='D')
     embargo_end = effective_end + embargo_delta
 
-    # Convert to int64 nanoseconds in UTC-naive for fast comparisons
+    # Convert to int64 nanoseconds arrays for fast comparisons
     idx = df_sorted.index
     if idx.tz is not None:
-        idx_ns = idx.tz_convert('UTC').tz_localize(None).view('int64')
-        end_ns = effective_end.dt.tz_convert('UTC').dt.tz_localize(None).astype('int64')
-        embargo_end_ns = embargo_end.dt.tz_convert('UTC').dt.tz_localize(None).astype('int64')
+        idx_ns = idx.tz_convert('UTC').tz_localize(None).asi8
+        embargo_end_ns = embargo_end.dt.tz_convert('UTC').dt.tz_localize(None).astype('int64').to_numpy()
     else:
-        idx_ns = idx.view('int64')
-        end_ns = effective_end.astype('int64')
-        embargo_end_ns = embargo_end.astype('int64')
+        idx_ns = idx.asi8
+        embargo_end_ns = embargo_end.astype('int64').to_numpy()
 
     keep = np.zeros(len(df_sorted), dtype=bool)
     last_ns = np.int64(-2**63)  # effectively -inf

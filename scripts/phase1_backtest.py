@@ -14,8 +14,10 @@ from datetime import datetime, timedelta
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from volume_price_trade.backtest.engine import run_backtest
-from volume_price_trade.ml.predict import load_model_and_predict
-from volume_price_trade.utils.io import load_json
+from volume_price_trade.ml.dataset import make_dataset
+import pandas as pd
+import numpy as np
+import joblib
 
 def main(model_run_id=None):
     if not model_run_id:
@@ -61,22 +63,109 @@ def main(model_run_id=None):
 
     print(f"Backtest period: {start_str} to {end_str}")
 
-    # Run backtest
-    results = run_backtest(
-        model_dir=model_dir,
+    # 1) Load dataset (features/meta) for OOS tickers and window
+    from volume_price_trade.ml.dataset import make_dataset
+    X, y, meta = make_dataset(
         tickers=oos_tickers,
-        start_date=start_str,
-        end_date=end_str,
+        start=start_str,
+        end=end_str,
         config=config
     )
+    if X.empty:
+        print("Error: No features built for backtest window/tickers")
+        return
 
-    print("
-Backtest completed!")
-    print(f"Total Trades: {results.get('total_trades', 0)}")
+    # 2) Load model
+    model_path = Path(model_dir) / "model.joblib"
+    if not model_path.exists():
+        print(f"Error: model not found at {model_path}")
+        return
+    model = joblib.load(str(model_path))
+
+    # 3) Generate signals (binary/multiclass robust)
+    preds = model.predict_proba(X)
+    signals_df = meta[['timestamp', 'ticker']].copy()
+    if preds.ndim == 2 and preds.shape[1] == 2:
+        signals_df['signal_strength'] = preds[:, 1] - 0.5
+    elif preds.ndim == 2 and preds.shape[1] > 2:
+        signals_df['signal_strength'] = np.max(preds, axis=1) - (1.0 / preds.shape[1])
+    else:
+        preds = np.asarray(preds).reshape(-1)
+        signals_df['signal_strength'] = preds - 0.5
+
+    # Provide ATR to engine if available (use TA feature name)
+    if 'atr_20' in X.columns:
+        signals_df['atr'] = X['atr_20'].values
+
+    # Optional thresholding for sparsity
+    threshold = float(config.get('backtest', {}).get('signal_threshold', 0.1))
+    signals_df = signals_df[signals_df['signal_strength'].abs() >= threshold].copy()
+
+    # 4) Prepare bars data (OHLCV) for same window
+    def _prepare_bars_data(tickers, start_date, end_date):
+        all_bars = []
+        start_dt = pd.to_datetime(start_date).tz_localize('UTC')
+        end_dt = pd.to_datetime(end_date).tz_localize('UTC')
+        for t in tickers:
+            fp = Path(f"data/{t}.parquet")
+            if not fp.exists():
+                continue
+            dfb = pd.read_parquet(fp)
+            # Ensure DatetimeIndex
+            if not isinstance(dfb.index, pd.DatetimeIndex):
+                if 'timestamp' in dfb.columns:
+                    dfb['timestamp'] = pd.to_datetime(dfb['timestamp'])
+                    dfb = dfb.set_index('timestamp')
+                else:
+                    dfb.index = pd.to_datetime(dfb.index)
+            if dfb.index.tz is None:
+                dfb.index = dfb.index.tz_localize('UTC')
+            else:
+                dfb.index = dfb.index.tz_convert('UTC')
+            dfb = dfb[(dfb.index >= start_dt) & (dfb.index <= end_dt)].copy()
+            if dfb.empty:
+                continue
+            dfb['ticker'] = t
+            dfb = dfb.reset_index().rename(columns={'index': 'timestamp'})
+            all_bars.append(dfb)
+        if not all_bars:
+            return pd.DataFrame()
+        return pd.concat(all_bars, axis=0)
+
+    bars_df = _prepare_bars_data(oos_tickers, start_str, end_str)
+    if bars_df.empty:
+        print("Error: No bars data available for backtest tickers/window")
+        return
+
+    # 5) Map risk/session config to backtest config
+    risk = config.get('risk', {})
+    sessions = config.get('sessions', {})
+    backtest_config = {
+        'backtest': {
+            'initial_equity': float(risk.get('start_equity', 10000)),
+            'risk_per_trade': float(risk.get('risk_perc', 0.02)),
+            'max_trades_per_day': int(risk.get('max_trades_per_day', 5)),
+            'eod_flat_minutes_before_close': int(sessions.get('eod_flat_minutes_before_close', 1)),
+            'stop_loss_atr_multiple': float(risk.get('atr_stop_mult', 1.5)),
+            'take_profit_atr_multiple': float(risk.get('take_profit_R', 2.0)),
+            'signal_threshold': threshold
+        }
+    }
+
+    # 6) Run backtest
+    results = run_backtest(
+        signals_df=signals_df,
+        bars_df=bars_df,
+        config=backtest_config
+    )
+
+    # 7) Print summary
+    print("\nBacktest completed!")
+    print(f"Total Trades: {len(results.get('trades', []))}")
     print(f"Total Return: {results.get('total_return', 0):.2%}")
-    print(f"Sharpe Ratio: {results.get('sharpe_ratio', 0):.2f}")
-    print(f"Max Drawdown: {results.get('max_drawdown', 0):.2%}")
-    print(f"Report: {results.get('report_path', 'N/A')}")
+    eq = results.get('equity_curve')
+    if isinstance(eq, pd.DataFrame):
+        print(f"Equity Curve Points: {len(eq)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Phase 1 Backtest")

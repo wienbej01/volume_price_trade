@@ -49,7 +49,7 @@ features:
     breakout_lookback: 20
   enable:
     ta: true
-    volume_profile: false
+    volume_profile: true
     vpa: true
     ict: true
     time_of_day: true

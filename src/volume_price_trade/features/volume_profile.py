@@ -306,78 +306,79 @@ def compute_volume_profile_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd
         date = session_data['date'].iloc[0]
         i = unique_dates.index(date)
 
-        # Get rolling window of previous sessions
+        # Rolling window indices
         start_idx = max(0, i - adjusted_rolling_sessions + 1)
         previous_dates = unique_dates[start_idx:i]
-        
-        # Combine previous sessions and current session for rolling calculation
+
+        # Combine bars within rolling window (previous sessions + current)
         if previous_dates:
             previous_sessions = rth_df[rth_df['date'].isin(previous_dates)]
-            rolling_bars = pd.concat([previous_sessions, session_data])
+            rolling_bars = pd.concat([previous_sessions, session_data], axis=0)
         else:
             rolling_bars = session_data
 
-        # Calculate volume profile for rolling window
-        profile = calculate_volume_profile_safe(rolling_bars, bin_size)
+        # Fast profile via numba-backed routine (fallback to safe on error)
+        try:
+            profile = calculate_volume_profile(rolling_bars, bin_size)
+        except Exception:
+            profile = calculate_volume_profile_safe(rolling_bars, bin_size)
 
         if profile.empty:
             return None
 
-        # Find POC
+        # POC / Value area / HVN-LVN
         poc = find_poc_safe(profile)
-
-        # Calculate value area
         val, vah = calculate_value_area_safe(profile, value_area_pct)
-
-        # Find HVN/LVN
         hvn_prices, lvn_prices = find_hvn_lvn_safe(profile, hvn_lvn_threshold)
 
-        # Update features for each bar in current session
+        # Per-bar features for current session
         session_features = session_data.copy()
         session_features['vp_poc'] = poc
         session_features['vp_vah'] = vah
         session_features['vp_val'] = val
 
-        # Calculate distance to POC in ATR units
+        # Distance to POC in ATR units (cap to avoid explosions)
         current_atr = atr_values.loc[session_features.index]
-        dist_to_poc = np.abs(session_features['close'] - poc)
-        dist_atr = np.minimum(dist_to_poc / current_atr, 10.0)
-        session_features['vp_dist_to_poc_atr'] = dist_atr
+        dist_to_poc = (session_features['close'] - poc).abs()
+        session_features['vp_dist_to_poc_atr'] = np.minimum(dist_to_poc / current_atr.replace(0, np.nan), 10.0).fillna(10.0)
 
-        # Check if price is inside value area
-        session_features['vp_inside_value'] = np.where((session_features['close'] >= val) & (session_features['close'] <= vah), 1, 0)
+        # Inside value area
+        session_features['vp_inside_value'] = ((session_features['close'] >= val) & (session_features['close'] <= vah)).astype(int)
 
-        # Check if HVN/LVN are nearby
+        # HVN/LVN proximity in ATR units
         atr_distance = hvn_lvn_atr_distance * current_atr
         session_features['vp_hvn_near'] = 0
         session_features['vp_lvn_near'] = 0
-        for price in hvn_prices:
-            session_features['vp_hvn_near'] = np.where(np.abs(session_features['close'] - price) <= atr_distance, 1, session_features['vp_hvn_near'])
-        for price in lvn_prices:
-            session_features['vp_lvn_near'] = np.where(np.abs(session_features['close'] - price) <= atr_distance, 1, session_features['vp_lvn_near'])
+        if hvn_prices:
+            for price in hvn_prices:
+                session_features['vp_hvn_near'] = np.where((session_features['close'] - price).abs() <= atr_distance, 1, session_features['vp_hvn_near'])
+        if lvn_prices:
+            for price in lvn_prices:
+                session_features['vp_lvn_near'] = np.where((session_features['close'] - price).abs() <= atr_distance, 1, session_features['vp_lvn_near'])
 
-        # Calculate POC shift direction
+        # POC shift dir (vs previous session only)
         if i > 0:
             prev_date = unique_dates[i-1]
             prev_session = rth_df[rth_df['date'] == prev_date]
-            if not prev_session.empty:
-                prev_profile = calculate_volume_profile_safe(prev_session, bin_size)
-                if not prev_profile.empty:
-                    prev_poc = find_poc_safe(prev_profile)
-                    if not np.isnan(poc) and not np.isnan(prev_poc):
-                        if poc > prev_poc:
-                            session_features['vp_poc_shift_dir'] = 1
-                        elif poc < prev_poc:
-                            session_features['vp_poc_shift_dir'] = -1
-                        else:
-                            session_features['vp_poc_shift_dir'] = 0
+            prev_profile = calculate_volume_profile(prev_session, bin_size) if not prev_session.empty else pd.DataFrame()
+            if not prev_profile.empty:
+                prev_poc = find_poc_safe(prev_profile)
+                if not np.isnan(poc) and not np.isnan(prev_poc):
+                    session_features['vp_poc_shift_dir'] = np.where(poc > prev_poc, 1, np.where(poc < prev_poc, -1, 0))
+
         return session_features
 
-    # Process each session
-    processed_sessions = rth_df.groupby('date').apply(process_session)
+    # Process each session with explicit loop (faster than groupby.apply for complex ops)
+    session_results = []
+    for d in unique_dates:
+        ses = rth_df[rth_df['date'] == d]
+        out = process_session(ses)
+        if out is not None:
+            session_results.append(out)
 
-    # Update the result_df with the computed features
-    result_df.update(processed_sessions)
+    if session_results:
+        processed_sessions = pd.concat(session_results, axis=0)
+        result_df.update(processed_sessions)
 
     # Apply forward-fill within each date to reduce NaN values
     for date in unique_dates:

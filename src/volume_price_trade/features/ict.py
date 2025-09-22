@@ -335,72 +335,93 @@ def is_in_killzone(ts: pd.Timestamp, killzone_ranges: Dict[str, list]) -> Dict[s
 
 def compute_ict_features(df: pd.DataFrame, cfg: Dict[str, Any]) -> pd.DataFrame:
     """
-    Compute ICT (Inner Circle Trader) features.
-    
-    Args:
-        df: DataFrame with OHLCV data
-        cfg: Configuration dictionary with ICT parameters
-        
-    Returns:
-        DataFrame with ICT features
+    Compute ICT features using vectorized operations (no Python loops).
     """
-    # Make a copy to avoid modifying the original DataFrame
-    result_df = df.copy()
-    
-    # Get configuration parameters
+    res = df.copy()
+
+    # Params
     fvg_min_size_atr = cfg.get('fvg_min_size_atr', 0.25)
     displacement_body_atr = cfg.get('displacement_body_atr', 1.2)
+    lookback = int(cfg.get('lookback', 10))
     killzone_ranges = cfg.get('time_of_day', {}).get('killzones', {
         'ny_open': ["09:30", "11:30"],
         'lunch': ["12:00", "13:30"],
         'pm_drive': ["13:30", "16:00"]
     })
-    
-    # Initialize feature columns
-    result_df['ict_fvg_up'] = False
-    result_df['ict_fvg_down'] = False
-    result_df['ict_liquidity_sweep_up'] = False
-    result_df['ict_liquidity_sweep_down'] = False
-    result_df['ict_displacement_up'] = False
-    result_df['ict_displacement_down'] = False
-    result_df['ict_dist_to_eq'] = 0.0
-    
-    # Initialize killzone columns
-    for zone_name in killzone_ranges.keys():
-        result_df[f'ict_killzone_{zone_name}'] = False
-    
-    # Compute features for each row
-    for pos_idx in range(len(df)):
-        # Get the actual index label
-        idx_label = df.index[pos_idx]
-        
-        # FVG detection
-        result_df.at[idx_label, 'ict_fvg_up'] = detect_fvg_up(df, pos_idx, fvg_min_size_atr)
-        result_df.at[idx_label, 'ict_fvg_down'] = detect_fvg_down(df, pos_idx, fvg_min_size_atr)
-        
-        # Liquidity sweep detection
-        result_df.at[idx_label, 'ict_liquidity_sweep_up'] = detect_liquidity_sweep_up(df, pos_idx)
-        result_df.at[idx_label, 'ict_liquidity_sweep_down'] = detect_liquidity_sweep_down(df, pos_idx)
-        
-        # Displacement detection
-        result_df.at[idx_label, 'ict_displacement_up'] = detect_displacement_up(df, pos_idx, displacement_body_atr)
-        result_df.at[idx_label, 'ict_displacement_down'] = detect_displacement_down(df, pos_idx, displacement_body_atr)
-        
-        # Equilibrium distance
-        result_df.at[idx_label, 'ict_dist_to_eq'] = calculate_equilibrium_distance(df, pos_idx)
-        
-        # Killzone detection
-        if 'timestamp' in df.columns:
-            killzone_flags = is_in_killzone(df.iloc[pos_idx]['timestamp'], killzone_ranges)
-            for zone_name, is_in_zone in killzone_flags.items():
-                result_df.at[idx_label, f'ict_{zone_name}'] = is_in_zone
-        else:
-            # Use index as timestamp if no timestamp column
-            killzone_flags = is_in_killzone(idx_label, killzone_ranges)
-            for zone_name, is_in_zone in killzone_flags.items():
-                result_df.at[idx_label, f'ict_{zone_name}'] = is_in_zone
-    
-    return result_df
+
+    # Precompute ATR once
+    atr_series = atr(df, window=20)
+
+    high = df['high']; low = df['low']; close = df['close']; open_ = df['open']
+    rng = (high - low).replace(0, np.nan)
+
+    # FVG up/down (3-bar)
+    bar1_high = high.shift(2)
+    bar1_low = low.shift(2)
+    bar2_low = low.shift(1)
+    bar2_high = high.shift(1)
+    bar3_high = high
+    bar3_low = low
+
+    gap_up_size = (bar2_low - bar1_high)
+    fvg_up = (bar1_high < bar2_low) & (bar2_low < bar3_high) & (gap_up_size >= fvg_min_size_atr * atr_series)
+
+    gap_down_size = (bar1_low - bar2_high)
+    fvg_down = (bar1_low > bar2_high) & (bar2_high > bar3_low) & (gap_down_size >= fvg_min_size_atr * atr_series)
+
+    # Liquidity sweeps vs shifted swings
+    swing_high = high.shift(1).rolling(lookback, min_periods=lookback).max()
+    swing_low = low.shift(1).rolling(lookback, min_periods=lookback).min()
+
+    broke_high = high > swing_high
+    failed_close_above = close < swing_high
+    wick_up = (high - np.maximum(open_, close))
+    signif_wick_up = (rng > 0) & ((wick_up / rng) >= 0.3)
+    liq_sweep_up = broke_high & (failed_close_above | signif_wick_up)
+
+    broke_low = low < swing_low
+    failed_close_below = close > swing_low
+    wick_down = (np.minimum(open_, close) - low)
+    signif_wick_down = (rng > 0) & ((wick_down / rng) >= 0.3)
+    liq_sweep_down = broke_low & (failed_close_below | signif_wick_down)
+
+    # Displacement body vs ATR
+    body_up = (close - open_)
+    body_down = (open_ - close)
+    disp_up = (body_up > displacement_body_atr * atr_series)
+    disp_down = (body_down > displacement_body_atr * atr_series)
+
+    # Equilibrium distance (% of swing range over lookback including current)
+    swing_high_inc = high.rolling(lookback, min_periods=lookback).max()
+    swing_low_inc = low.rolling(lookback, min_periods=lookback).min()
+    equilibrium = (swing_high_inc + swing_low_inc) / 2.0
+    swing_range = (swing_high_inc - swing_low_inc)
+    dist_to_eq = np.where(swing_range > 0, ((close - equilibrium) / swing_range) * 100.0, 0.0)
+
+    # Killzones (vectorized on index time; assumes index is localized to desired session tz)
+    res['ict_killzone_ny_open'] = False
+    res['ict_killzone_lunch'] = False
+    res['ict_killzone_pm_drive'] = False
+    if isinstance(df.index, pd.DatetimeIndex):
+        ts_time = df.index.time
+        def in_range(t, a, b):
+            return (t >= a) & (t <= b)
+        for zone, (a_str, b_str) in killzone_ranges.items():
+            a = pd.to_datetime(a_str).time()
+            b = pd.to_datetime(b_str).time()
+            mask = np.fromiter((in_range(t, a, b) for t in ts_time), dtype=bool, count=len(ts_time))
+            res[f'ict_killzone_{zone}'] = mask
+
+    # Assign results
+    res['ict_fvg_up'] = fvg_up.fillna(False)
+    res['ict_fvg_down'] = fvg_down.fillna(False)
+    res['ict_liquidity_sweep_up'] = liq_sweep_up.fillna(False)
+    res['ict_liquidity_sweep_down'] = liq_sweep_down.fillna(False)
+    res['ict_displacement_up'] = disp_up.fillna(False)
+    res['ict_displacement_down'] = disp_down.fillna(False)
+    res['ict_dist_to_eq'] = pd.Series(dist_to_eq, index=df.index).fillna(0.0)
+
+    return res
 
 
 # Legacy function for backward compatibility

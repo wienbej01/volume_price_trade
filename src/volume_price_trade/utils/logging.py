@@ -53,14 +53,29 @@ def get_logger(name: str = "vpt", level: int = logging.DEBUG,
 
 def setup_run_logger(run_id: str, log_dir: str = "logs") -> logging.Logger:
     """
-    Set up a logger for a specific training run.
-    
-    Args:
-        run_id: Unique identifier for the run
-        log_dir: Directory to store log files
-        
-    Returns:
-        Configured logger for the run
+    Set up a logger for a specific training run and attach a file handler to root
+    so all module loggers (volume_price_trade.*) propagate into this run log.
     """
     log_file = f"{log_dir}/run_{run_id}.log"
-    return get_logger(name=f"vpt.{run_id}", log_file=log_file)
+    run_logger = get_logger(name=f"vpt.{run_id}", log_file=log_file)
+
+    # Also attach the same file handler to the root logger for propagation
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    # Avoid duplicate handlers
+    existing = False
+    for h in root.handlers:
+        if isinstance(h, logging.FileHandler):
+            try:
+                if getattr(h, 'baseFilename', None) == str(Path(log_file).resolve()):
+                    existing = True
+                    break
+            except Exception:
+                continue
+    if not existing:
+        fh = logging.FileHandler(log_file)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root.addHandler(fh)
+
+    return run_logger
