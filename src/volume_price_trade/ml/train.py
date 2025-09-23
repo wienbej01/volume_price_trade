@@ -15,6 +15,7 @@ from pathlib import Path
 from .dataset import make_dataset
 from .cv import purged_walk_forward_splits
 from .models import train_xgb
+from .train_report import generate_train_report
 from ..utils.io import save_joblib, save_json, save_yaml
 from ..utils.logging import get_logger, setup_run_logger
 
@@ -22,7 +23,7 @@ from ..utils.logging import get_logger, setup_run_logger
 logger = get_logger(__name__)
 
 
-def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str, Any]:
+def train_model(config_path: str, sample_days: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Train a model using the provided configuration and save artifacts.
     
@@ -60,25 +61,33 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
             raise ValueError("No training tickers found in config")
         
         # Determine date range
-        # End date is last day of previous month to ensure data is available
-        end_date_dt = datetime.now().replace(day=1) - pd.DateOffset(days=1)
-        end_date = end_date_dt.strftime('%Y-%m-%d')
-
-        # If sample_days is provided, adjust the start date
-        if sample_days is not None and sample_days > 0:
-            start_date_dt = end_date_dt - pd.DateOffset(days=sample_days)
-            start_date = start_date_dt.strftime('%Y-%m-%d')
-            logger.info(f"Using sampled data: {sample_days} days from {start_date} to {end_date}")
+        if start_date is not None and end_date is not None:
+            # Use provided date range
+            start_date_str = start_date
+            end_date_str = end_date
+            logger.info(f"Using provided date range: {start_date_str} to {end_date_str}")
         else:
-            # Default to 2 years of data
-            start_date = (end_date_dt - pd.DateOffset(years=2)).strftime('%Y-%m-%d')
+            # End date is last day of previous month to ensure data is available
+            end_date_dt = datetime.now().replace(day=1) - pd.DateOffset(days=1)
+            end_date_str = end_date_dt.strftime('%Y-%m-%d')
+
+            # If sample_days is provided, adjust the start date
+            if sample_days is not None and sample_days > 0:
+                start_date_dt = end_date_dt - pd.DateOffset(days=sample_days)
+                start_date_str = start_date_dt.strftime('%Y-%m-%d')
+                logger.info(f"Using sampled data: {sample_days} days from {start_date_str} to {end_date_str}")
+            else:
+                # Default to 2 years of data
+                start_date_dt = end_date_dt - pd.DateOffset(years=2)
+                start_date_str = start_date_dt.strftime('%Y-%m-%d')
+                logger.info(f"Using default 2-year date range: {start_date_str} to {end_date_str}")
         
         # Load dataset
         logger.info("Loading dataset...")
         X, y, meta = make_dataset(
             tickers=train_tickers,
-            start=start_date,
-            end=end_date,
+            start=start_date_str,
+            end=end_date_str,
             config=config
         )
         
@@ -125,6 +134,8 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
             "timestamp": datetime.now().isoformat(),
             "config_path": config_path,
             "sample_days": sample_days,
+            "start_date": start_date_str,
+            "end_date": end_date_str,
             "n_samples": len(X),
             "n_features": len(X.columns),
             "n_folds": len(cv_splits),
@@ -136,8 +147,16 @@ def train_model(config_path: str, sample_days: Optional[int] = None) -> Dict[str
                 "feature_names": feature_names_path
             }
         }
-        
+
         metadata_path = str(artifacts_dir / "run_metadata.json")
+        save_json(run_metadata, metadata_path)
+
+        # Generate training report
+        logger.info("Generating training report...")
+        train_report_path = str(artifacts_dir / "train_report.html")
+        generate_train_report(run_metadata, metrics, list(X.columns), train_report_path)
+        run_metadata["artifacts"]["train_report"] = train_report_path
+        # Update metadata with report path
         save_json(run_metadata, metadata_path)
         
         # Log final metrics

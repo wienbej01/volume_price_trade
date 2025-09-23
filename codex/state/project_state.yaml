@@ -14,6 +14,16 @@ artifacts:
   related_run: run-e55fc81d
   timestamp: '2025-09-22T12:58:00.337013'
   type: model_training
+- description: Trained model with run ID run-adfe12bd
+  id: A03
+  related_run: run-adfe12bd
+  timestamp: '2025-09-23T09:03:43.672389'
+  type: model_training
+- description: Trained model with run ID run-72c1ee7a
+  id: A04
+  related_run: run-72c1ee7a
+  timestamp: '2025-09-23T09:04:23.636859'
+  type: model_training
 milestones: []
 project: volume_price_trade
 runs:
@@ -32,4 +42,14 @@ runs:
     0.2000'
   step: M4-training
   timestamp: '2025-09-22T12:58:00.337013'
+- id: run-adfe12bd
+  notes: 'Model training run with 65 samples, 63 features, 1 CV folds. Average accuracy:
+    0.2000'
+  step: M4-training
+  timestamp: '2025-09-23T09:03:43.672389'
+- id: run-72c1ee7a
+  notes: 'Model training run with 65 samples, 63 features, 1 CV folds. Average accuracy:
+    0.2000'
+  step: M4-training
+  timestamp: '2025-09-23T09:04:23.636859'
 version: 0.1.0

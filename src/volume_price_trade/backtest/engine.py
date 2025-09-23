@@ -212,21 +212,37 @@ def run_backtest(
             # Determine direction based on signal
             direction = 'long' if signal_strength > 0 else 'short'
             
-            # Calculate stop loss and take profit
-            atr = signal.get('atr', bar['high'] - bar['low'])  # Use ATR if available, otherwise bar range
-            
+            # Calculate stop loss and take profit (robust to NaN ATR/entry)
+            atr_val = signal.get('atr', np.nan)
+            try:
+                import pandas as pd  # ensure available
+            except Exception:
+                pass
+            if (isinstance(atr_val, float) and (np.isnan(atr_val) or not np.isfinite(atr_val))) or atr_val is None or atr_val <= 0:
+                # Fallback to current bar range
+                fallback = (bar['high'] - bar['low'])
+                atr_val = float(fallback) if np.isfinite(fallback) and fallback > 0 else 1e-6
+
             if direction == 'long':
-                stop_loss = bar['close'] - (stop_loss_atr_multiple * atr)
-                take_profit = bar['close'] + (take_profit_atr_multiple * atr)
+                stop_loss = bar['close'] - (stop_loss_atr_multiple * atr_val)
+                take_profit = bar['close'] + (take_profit_atr_multiple * atr_val)
             else:  # short
-                stop_loss = bar['close'] + (stop_loss_atr_multiple * atr)
-                take_profit = bar['close'] - (take_profit_atr_multiple * atr)
-            
+                stop_loss = bar['close'] + (stop_loss_atr_multiple * atr_val)
+                take_profit = bar['close'] - (take_profit_atr_multiple * atr_val)
+
+            # Entry price fallback
+            entry_price = bar.get('open', np.nan)
+            if (isinstance(entry_price, float) and (np.isnan(entry_price) or entry_price <= 0)) or entry_price is None:
+                entry_price = bar.get('close', np.nan)
+            if not (isinstance(entry_price, float) and np.isfinite(entry_price) and entry_price > 0):
+                # Cannot size position without a valid entry; skip this signal
+                continue
+
             # Calculate position size
             position_info = calculate_position_size(
                 equity=equity,
-                entry=bar['open'],
-                stop=stop_loss,
+                entry=float(entry_price),
+                stop=float(stop_loss) if np.isfinite(stop_loss) else entry_price,
                 risk_perc=risk_per_trade,
                 commission_pct=commission_pct
             )

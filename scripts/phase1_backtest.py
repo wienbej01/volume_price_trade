@@ -85,6 +85,8 @@ def main(model_run_id=None):
     # 3) Generate signals (binary/multiclass robust)
     preds = model.predict_proba(X)
     signals_df = meta[['timestamp', 'ticker']].copy()
+    # Ensure 'timestamp' is only a column (avoid ambiguity with index name)
+    signals_df = signals_df.reset_index(drop=True)
     if preds.ndim == 2 and preds.shape[1] == 2:
         signals_df['signal_strength'] = preds[:, 1] - 0.5
     elif preds.ndim == 2 and preds.shape[1] > 2:

@@ -85,11 +85,14 @@ def make_dataset(
                     labeled_df = processed_df.copy()
                 else:
                     # Build labels cheaply from bars and join to processed features
-                    bars_df = _load_bars_for_ticker(ticker, start_date, end_date, config)
+                    # Only load bars for the date range present in processed features to avoid loading unnecessary data
+                    processed_start = processed_df.index.min()
+                    processed_end = processed_df.index.max()
+                    bars_df = _load_bars_for_ticker(ticker, processed_start, processed_end, config)
                     if bars_df.empty:
-                        logger.warning(f"No bars available to label processed features for {ticker} between {start} and {end}")
+                        logger.warning(f"No bars available to label processed features for {ticker} between {processed_start} and {processed_end}")
                         continue
-                    logger.info(f"Generating labels for {ticker} to join with processed features")
+                    logger.info(f"Generating labels for {ticker} to join with processed features (date range: {processed_start} to {processed_end})")
                     labels_only = triple_barrier_labels(
                         bars_df,
                         horizons_min=horizons_min,

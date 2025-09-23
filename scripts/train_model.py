@@ -26,6 +26,18 @@ def main():
         default=None,
         help="Number of days to sample for faster testing (optional)"
     )
+    parser.add_argument(
+        "--start_date",
+        type=str,
+        default=None,
+        help="Start date for training data (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--end_date",
+        type=str,
+        default=None,
+        help="End date for training data (YYYY-MM-DD)"
+    )
     
     args = parser.parse_args()
     
@@ -39,7 +51,9 @@ def main():
         # Train the model
         result = train_model(
             config_path=str(config_path),
-            sample_days=args.sample_days
+            sample_days=args.sample_days,
+            start_date=args.start_date,
+            end_date=args.end_date
         )
         
         # Print summary

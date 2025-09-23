@@ -11,51 +11,37 @@ logger = logging.getLogger(__name__)
 
 def shares_for_risk(equity: float, entry: float, stop: float, risk_perc: float) -> int:
     """
-    Calculate the number of shares to trade based on risk percentage.
-    
-    This function implements position sizing based on a fixed percentage
-    of equity risk per trade, using the stop loss distance to determine
-    the appropriate position size.
-    
-    Args:
-        equity: Total account equity
-        entry: Entry price per share
-        stop: Stop loss price per share
-        risk_perc: Risk percentage as a decimal (e.g., 0.02 for 2%)
-        
-    Returns:
-        Integer number of shares to trade
-        
-    Raises:
-        ValueError: If entry equals stop (division by zero)
+    Calculate the number of shares to trade based on risk percentage with robust guards.
     """
-    # Validate inputs
-    if equity <= 0:
-        logger.warning("Equity must be positive, returning 0 shares")
+    # Validate base inputs
+    if equity <= 0 or risk_perc <= 0:
+        logger.warning("Non-positive equity or risk_perc; returning 0 shares")
         return 0
-        
+
+    # Guard against NaN/inf and non-positive prices
+    vals = [entry, stop]
+    if any((x is None) for x in vals):
+        logger.warning("Entry/stop is None; returning 0 shares")
+        return 0
+    if any((isinstance(x, float) and (np.isnan(x) or not np.isfinite(x))) for x in vals):
+        logger.warning("Entry/stop NaN or non-finite; returning 0 shares")
+        return 0
     if entry <= 0 or stop <= 0:
-        logger.warning("Entry and stop prices must be positive, returning 0 shares")
+        logger.warning("Entry/stop must be positive; returning 0 shares")
         return 0
-        
-    if risk_perc <= 0:
-        logger.warning("Risk percentage must be positive, returning 0 shares")
+
+    # Risk amount and stop distance
+    risk_amount = float(equity) * float(risk_perc)
+    stop_distance = abs(float(entry) - float(stop))
+
+    if not np.isfinite(stop_distance) or stop_distance <= 0:
+        logger.warning("Invalid or zero stop distance; returning 0 shares")
         return 0
-    
-    # Calculate risk amount in currency
-    risk_amount = equity * risk_perc
-    
-    # Calculate stop distance
-    stop_distance = abs(entry - stop)
-    
-    # Avoid division by zero
-    if stop_distance == 0:
-        raise ValueError("Entry price cannot equal stop price")
-    
-    # Calculate number of shares
+
     shares = risk_amount / stop_distance
-    
-    # Return as integer (floor to ensure we don't exceed risk)
+    if not np.isfinite(shares) or shares <= 0:
+        return 0
+
     return int(np.floor(shares))
 
 
