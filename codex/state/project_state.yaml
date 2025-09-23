@@ -24,6 +24,11 @@ artifacts:
   related_run: run-72c1ee7a
   timestamp: '2025-09-23T09:04:23.636859'
   type: model_training
+- description: Trained model with run ID run-0b2cfda4
+  id: A05
+  related_run: run-0b2cfda4
+  timestamp: '2025-09-23T12:03:48.490020'
+  type: model_training
 milestones: []
 project: volume_price_trade
 runs:
@@ -52,4 +57,9 @@ runs:
     0.2000'
   step: M4-training
   timestamp: '2025-09-23T09:04:23.636859'
+- id: run-0b2cfda4
+  notes: 'Model training run with 25 samples, 63 features, 1 CV folds. Average accuracy:
+    0.8000'
+  step: M4-training
+  timestamp: '2025-09-23T12:03:48.490020'
 version: 0.1.0

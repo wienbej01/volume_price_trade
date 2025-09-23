@@ -84,17 +84,17 @@ def make_dataset(
                 if 'y_class' in processed_df.columns:
                     labeled_df = processed_df.copy()
                 else:
-                    # Build labels cheaply from bars and join to processed features
-                    # Only load bars for the date range present in processed features to avoid loading unnecessary data
+                    # Build labels directly from processed features' OHLCV to avoid external bar loads
                     processed_start = processed_df.index.min()
                     processed_end = processed_df.index.max()
-                    bars_df = _load_bars_for_ticker(ticker, processed_start, processed_end, config)
-                    if bars_df.empty:
-                        logger.warning(f"No bars available to label processed features for {ticker} between {processed_start} and {processed_end}")
+                    ohlcv_cols = ['open', 'high', 'low', 'close', 'volume']
+                    missing = [c for c in ohlcv_cols if c not in processed_df.columns]
+                    if missing:
+                        logger.warning(f"Processed features missing OHLCV columns {missing} for {ticker}; skipping")
                         continue
-                    logger.info(f"Generating labels for {ticker} to join with processed features (date range: {processed_start} to {processed_end})")
+                    logger.info(f"Generating labels for {ticker} from processed OHLCV (date range: {processed_start} to {processed_end})")
                     labels_only = triple_barrier_labels(
-                        bars_df,
+                        processed_df[ohlcv_cols],
                         horizons_min=horizons_min,
                         atr_mult_sl=atr_mult_sl,
                         r_mult_tp=r_mult_tp,

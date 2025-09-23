@@ -212,20 +212,22 @@ def compute_time_of_day_stats(trades: List[Dict[str, Any]]) -> Dict[str, Dict[st
     # Convert to DataFrame
     df = pd.DataFrame(trades)
 
-    # Extract hour from entry time
-    df['hour'] = pd.to_datetime(df['entry_time']).dt.hour
+    # Convert entry times to ET and compute minutes since midnight ET
+    times_et = pd.to_datetime(df['entry_time'], utc=True).dt.tz_convert('America/New_York')
+    df['time_minutes'] = times_et.dt.hour * 60 + times_et.dt.minute
 
-    # Define time periods
+    # Define time periods based on market hours (9:30 AM - 4:00 PM ET)
+    # Convert to minutes since midnight for easier comparison
     time_periods = {
-        'morning': (9, 11),
-        'midday': (11, 14),
-        'afternoon': (14, 16)
+        'morning': (570, 690),    # 9:30 AM - 11:30 AM ET
+        'midday': (690, 840),     # 11:30 AM - 2:00 PM ET
+        'afternoon': (840, 960)   # 2:00 PM - 4:00 PM ET
     }
 
     time_stats: Dict[str, Dict[str, Any]] = {}
 
-    for period, (start_hour, end_hour) in time_periods.items():
-        period_trades = df[(df['hour'] >= start_hour) & (df['hour'] < end_hour)]
+    for period, (start_minutes, end_minutes) in time_periods.items():
+        period_trades = df[(df['time_minutes'] >= start_minutes) & (df['time_minutes'] < end_minutes)]
         period_trades_typed = [{str(k): v for k, v in t.items()} for t in period_trades.to_dict('records')]
         time_stats[period] = compute_trade_stats(period_trades_typed)
 

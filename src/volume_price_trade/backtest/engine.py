@@ -127,9 +127,12 @@ def run_backtest(
     # Ensure data is sorted by timestamp
     signals_df = signals_df.sort_values('timestamp')
     bars_df = bars_df.sort_values('timestamp')
-    
-    # Get unique timestamps
-    unique_timestamps = sorted(signals_df['timestamp'].unique())
+
+    # Get unique timestamps from both signals and bars to ensure we process all market timestamps
+    # This ensures EOD flat logic runs even on days with no signals
+    signal_timestamps = set(signals_df['timestamp'].unique())
+    bar_timestamps = set(bars_df['timestamp'].unique())
+    unique_timestamps = sorted(signal_timestamps.union(bar_timestamps))
     
     # Process each timestamp
     for timestamp in unique_timestamps:
