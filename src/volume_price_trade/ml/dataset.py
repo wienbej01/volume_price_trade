@@ -62,6 +62,7 @@ def make_dataset(
     embargo_days = config.get('cv', {}).get('walk_forward', {}).get('embargo_days', 5)
     # Data source toggles
     use_processed = config.get('data', {}).get('use_processed', True)
+    use_local = config.get('data', {}).get('use_local', True)
     event_stride = int(config.get('data', {}).get('event_stride_minutes', 1) or 1)
     
     # Process each ticker
@@ -245,33 +246,36 @@ def _load_processed_features(ticker: str, start_date: datetime, end_date: dateti
 def _load_bars_for_ticker(ticker: str, start_date: datetime, end_date: datetime, config: Dict[str, Any]) -> pd.DataFrame:
     """
     Load bars for a specific ticker and date range with source fallback:
-    data/*.parquet -> GCS -> Polygon.
+    GCS -> Polygon (local disabled).
     """
     # Normalize bounds
     start_utc = start_date.tz_localize('UTC') if start_date.tz is None else start_date.tz_convert('UTC')
     end_utc = end_date.tz_localize('UTC') if end_date.tz is None else end_date.tz_convert('UTC')
 
-    # 1) Local parquet: data/{ticker}.parquet
-    try:
-        file_path = Path(f"data/{ticker}.parquet")
-        if file_path.exists():
-            bars_df = pd.read_parquet(file_path)
-            logger.info(f"Loaded {len(bars_df)} rows from {file_path}. Head:\n{bars_df.head()}")
-            # Preprocess: tz, sort, dedupe
-            from ..utils.preprocess import preprocess_bars
-            bars_df = preprocess_bars(bars_df, ticker=ticker)
+    use_local = config.get('data', {}).get('use_local', True)
 
-            # Filter by date range
-            bars_df = bars_df[(bars_df.index >= start_utc) & (bars_df.index <= end_utc)]
+    # 1) Local parquet: data/{ticker}.parquet (if enabled)
+    if use_local:
+        try:
+            file_path = Path(f"data/{ticker}.parquet")
+            if file_path.exists():
+                bars_df = pd.read_parquet(file_path)
+                logger.info(f"Loaded {len(bars_df)} rows from {file_path}. Head:\n{bars_df.head()}")
+                # Preprocess: tz, sort, dedupe
+                from ..utils.preprocess import preprocess_bars
+                bars_df = preprocess_bars(bars_df, ticker=ticker)
 
-            if not bars_df.empty:
-                return bars_df
-        else:
-            logger.info(f"Local parquet not found for {ticker} at {file_path}")
-    except Exception as e:
-        logger.warning(f"Local parquet load failed for {ticker}: {e}")
+                # Filter by date range
+                bars_df = bars_df[(bars_df.index >= start_utc) & (bars_df.index <= end_utc)]
 
-    # 2) GCS fallback via loader if enabled
+                if not bars_df.empty:
+                    return bars_df
+            else:
+                logger.info(f"Local parquet not found for {ticker} at {file_path}")
+        except Exception as e:
+            logger.warning(f"Local parquet load failed for {ticker}: {e}")
+
+    # 2) GCS via loader if enabled
     try:
         use_gcsfs = config.get('data', {}).get('gcs', {}).get('use_gcsfs', True)
         use_gcs = config.get('data', {}).get('use_gcs', True)

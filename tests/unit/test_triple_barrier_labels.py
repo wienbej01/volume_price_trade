@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import pytz
 
-from src.volume_price_trade.labels.targets import triple_barrier_labels
+from volume_price_trade.labels.targets import triple_barrier_labels
 
 
 class TestTripleBarrierLabels:

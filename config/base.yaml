@@ -2,6 +2,7 @@ project: llm_behavior_trading
 data:
   use_processed: true
   use_gcs: true
+  use_local: false
   use_polygon: false
   event_stride_minutes: 5
   gcs:
@@ -84,7 +85,16 @@ model:
 
 tickers:
   train: [
-    AAPL, MSFT, AMZN, GOOGL, TSLA
+    AAPL, MSFT, AMZN, GOOGL, META, NFLX, NVDA, AMD, INTC, MU, QCOM, AVGO, TXN, ADI, KLAC, 
+    LRCX, TSM, ASML, MRVL, NXPI, ON, ARM, SHOP, CRM, MDB, SNOW, NOW, DDOG, OKTA, ZS, NET, 
+    PANW, CRWD, RBLX, U, PLTR, PATH, AFRM, SQ, PYPL, COIN, HOOD, SOFI, DKNG, PENN, MGM, 
+    CCL, NCLH, RCL, UAL, DAL, AAL, LUV, JBLU, LYV, PEP, KO, MCD, SBUX, CMG, WEN, YUM, WMT, 
+    TGT, COST, HD, LOW, BBY, NKE, LULU, CROX, HBI, KSS, ANF, URBN, GPS, AEO, ELYV, F, GM, 
+    STLA, TSLA, RIVN, LCID, NIO, XPEV, LI, UBER, LYFT, DASH, ABNB, BKNG, MAR, HLT, ARMK, 
+    CHWY, ETSY, EBAY, W, PDD, BABA, JD, BIDU, IQ, TME, BILI, SE, MELI, NU, GLBE, PDD, TTD, 
+    ROKU, DIS, WBD, PARA, FOXA, SONY, EA, TTWO, ATVI, HAS, MAT, BYND, KHC, CPB, GIS, SJM, 
+    CAG, K, KR, DG, DLTR, FIVE, OLLI, SIG, ROST, TJX, M, JWN, BBWI, WOOF, WW, BKE, AAP, 
+    AZO, ORLY, GME, AMC
   ]
   oos: [
     REGN, LLY, TMO, MDT, BMY, BKNG, MAR, DHI, LEN, PLD, AMT, O, SPG, EOG, DUK, SO, TMUS, KR, AIG, MET

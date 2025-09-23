@@ -6,7 +6,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import pytz
 
-from src.volume_price_trade.ml.dataset import make_dataset, _purge_overlapping_events
+from volume_price_trade.ml.dataset import make_dataset, _purge_overlapping_events
 
 
 class TestDatasetBuilder:
@@ -47,7 +47,7 @@ class TestDatasetBuilder:
         def mock_load_bars(*args, **kwargs):
             return pd.DataFrame()
 
-        monkeypatch.setattr('src.volume_price_trade.ml.dataset._load_bars_for_ticker', mock_load_bars)
+        monkeypatch.setattr('volume_price_trade.ml.dataset._load_bars_for_ticker', mock_load_bars)
 
         # Call make_dataset
         X, y, meta = make_dataset(

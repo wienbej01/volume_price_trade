@@ -148,7 +148,14 @@ def run_backtest(
         # Use calendar helper for accurate session close time
         session_close = next_session_close(timestamp)
         flatten_time = session_close - timedelta(minutes=eod_flat_minutes_before_close)
-        if timestamp >= flatten_time and timestamp < session_close:
+
+        # Ensure timestamp is in UTC for comparison (calendar functions return UTC)
+        if timestamp.tz is None:
+            timestamp_utc = timestamp.tz_localize('UTC')
+        else:
+            timestamp_utc = timestamp.tz_convert('UTC')
+
+        if timestamp_utc >= flatten_time and timestamp_utc < session_close:
             # Close all open positions
             for ticker, position in list(positions.items()):
                 if position.is_open():

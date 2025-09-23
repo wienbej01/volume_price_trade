@@ -1,10 +1,31 @@
-"""Triple-barrier style labels constrained to 5–240m and EOD flat."""
+"""Triple-barrier labels with 5-minute event sampling and weighted decisioning.
+
+This implementation:
+- Samples event start times at calendar 5-minute boundaries by default.
+- Sizes barriers using ATR (stop = ATR * atr_mult_sl; take-profit = stop * r_mult_tp).
+- Truncates horizons at End-Of-Day when eod_flat is True.
+- Evaluates outcomes using only future bars (bar_close + 1 bar), avoiding lookahead.
+- Returns only the sampled event rows (downsampled).
+
+Outputs per event:
+- y_class in {'up','down','hold'}
+- horizon_minutes (actual, after EOD truncation if any)
+- event_end_time (timestamp of first barrier hit or timeout)
+
+Assumptions and integrity:
+- No lookahead: label for a start time t uses data from (t+1 ... horizon_end].
+- Tie-handling when both barriers are touched within the same bar is deterministic via `tie_break`.
+- Weights control how ties are resolved (and can be used downstream as sample weights),
+  but to avoid leakage into X given the existing dataset pipeline, weights are NOT returned
+  as a column; instead they are stored in result.attrs['label_weights'].
+"""
 
 import pandas as pd
 import numpy as np
-from typing import Tuple, Dict, Any, Optional, Union, cast
-from ..data.calendar import next_session_close
+from typing import Optional
+
 from ..features.ta_basic import atr
+from .trade_horizons import sample_event_index, compute_horizon_end
 
 
 def triple_barrier_labels(
@@ -13,284 +34,223 @@ def triple_barrier_labels(
     atr_mult_sl: float,
     r_mult_tp: float,
     eod_flat: bool,
-    mode: str = "fast"
+    w_up: float = 1.0,
+    w_down: float = 1.0,
+    event_freq: str = "5min",
+    mode: str = "precise",
+    tie_break: str = "tp",
 ) -> pd.DataFrame:
     """
-    Generate triple-barrier labels for each bar in the DataFrame.
+    Weighted triple-barrier labels with 5-minute event sampling.
 
     Args:
-        df: DataFrame with OHLCV data and datetime index
-        horizons_min: Maximum horizon in minutes (5-240)
-        atr_mult_sl: Multiplier for ATR to calculate stop loss
-        r_mult_tp: R-multiple for take profit (Target = Stop * r_mult_tp)
-        eod_flat: Whether to apply EOD flat position (close all positions at EOD)
-        mode: "fast" (vectorized) or "precise" (loop-based exact)
+        df: DataFrame with minute OHLCV and datetime index. Must contain ['open','high','low','close','volume'].
+        horizons_min: Maximum horizon in minutes (inclusive range 5..240).
+        atr_mult_sl: Stop-loss size in ATRs (stop = ATR * atr_mult_sl).
+        r_mult_tp: Take-profit R-multiple relative to stop (tp = stop * r_mult_tp).
+        eod_flat: Truncate horizon at next session close when True.
+        w_up: Weight associated with a take-profit hit (used for tie-breaking and downstream).
+        w_down: Weight associated with a stop-loss hit (used for tie-breaking and downstream).
+        event_freq: Sampling interval for event starts; default "5min".
+        mode: "precise" (default) uses first-hit detection with EOD truncation; "fast" uses rolling extrema.
+        tie_break: When both barriers are touched within the same bar, choose "tp" or "sl" deterministically.
 
-    Returns:
-        DataFrame with original data plus label columns:
-        - y_class: Label in {up, down, hold}
-        - horizon_minutes: Actual horizon used (may be less than horizons_min due to EOD)
-        - event_end_time: Timestamp when the event (TP/SL/timeout) occurred
+    Notes and guarantees:
+    - Signals are evaluated at bar close + 1 bar (current bar excluded).
+    - Purging/embargo should use event_end_time to keep temporal integrity.
+    - To prevent label leakage into X, this function does not add any label-like numeric columns.
     """
-    if mode == "fast":
-        return _triple_barrier_labels_fast(df, horizons_min, atr_mult_sl, r_mult_tp)
-    elif mode == "precise":
-        return _triple_barrier_labels_precise(df, horizons_min, atr_mult_sl, r_mult_tp, eod_flat)
-    else:
-        raise ValueError(f"Invalid mode: {mode}. Use 'fast' or 'precise'.")
+    if horizons_min < 5 or horizons_min > 240:
+        raise ValueError("horizons_min must be within [5, 240] minutes")
 
+    # Defensive index normalization
+    df = df.copy()
+    df.index = pd.to_datetime(df.index)
 
-def _triple_barrier_labels_fast(
-    df: pd.DataFrame,
-    horizons_min: int,
-    atr_mult_sl: float,
-    r_mult_tp: float
-) -> pd.DataFrame:
-    """
-    Performance-optimized implementation:
-    - Uses vectorized rolling max/min on future windows to avoid O(N*H) Python loops
-    - Approximates event_end_time as current_time + horizons_min minutes
-      (sufficient for purging/embargo and dramatically faster)
-    - Keeps ATR-based barrier sizing identical
+    # Select event start timestamps aligned to the requested frequency
+    event_idx = sample_event_index(df.index, freq=event_freq)
 
-    Args:
-        df: DataFrame with OHLCV data and datetime index
-        horizons_min: Maximum horizon in minutes (5-240)
-        atr_mult_sl: Multiplier for ATR to calculate stop loss
-        r_mult_tp: R-multiple for take profit (Target = Stop * r_mult_tp)
-
-    Returns:
-        DataFrame with original data plus:
-        - y_class: {'up','down','hold'}
-        - horizon_minutes: int (set to horizons_min where ATR is available, else 0)
-        - event_end_time: timestamp approximated as index + horizons_min minutes
-    """
-    # Defensive copy and datetime index
-    result_df = df.copy()
-    result_df.index = pd.to_datetime(result_df.index)
-
-    # Initialize output columns
-    result_df['y_class'] = 'hold'
-    result_df['horizon_minutes'] = 0
-
-    # Initialize event_end_time with tz-awareness matching index
-    if result_df.index.tz is not None:
-        result_df['event_end_time'] = pd.Series(
-            [pd.NaT] * len(result_df),
-            index=result_df.index,
-            dtype=f'datetime64[ns, {result_df.index.tz}]'
+    if mode == "precise":
+        result = _triple_barrier_labels_precise_weighted(
+            df=df,
+            event_idx=event_idx,
+            horizons_min=horizons_min,
+            atr_mult_sl=atr_mult_sl,
+            r_mult_tp=r_mult_tp,
+            eod_flat=eod_flat,
+            tie_break=tie_break,
+        )
+    elif mode == "fast":
+        result = _triple_barrier_labels_fast_weighted(
+            df=df,
+            event_idx=event_idx,
+            horizons_min=horizons_min,
+            atr_mult_sl=atr_mult_sl,
+            r_mult_tp=r_mult_tp,
         )
     else:
-        result_df['event_end_time'] = pd.NaT
+        raise ValueError(f"Invalid mode: {mode}. Use 'precise' or 'fast'.")
 
-    # Compute ATR for barrier sizing
-    atr_window = 20
-    atr_series = atr(df, atr_window)
-
-    # Barriers
-    stop_loss_points = atr_series * atr_mult_sl
-    take_profit_points = stop_loss_points * r_mult_tp
-    upper_barrier = result_df['close'] + take_profit_points
-    lower_barrier = result_df['close'] - stop_loss_points
-
-    # Window in bars (assumes 1-minute bars, consistent with dataset)
-    window = max(1, int(horizons_min))
-
-    # Forward-looking extrema excluding the current bar
-    # Reverse -> rolling -> reverse -> shift(-1) to exclude current
-    future_high_max = result_df['high'][::-1].rolling(window=window, min_periods=1).max()[::-1].shift(-1)
-    future_low_min = result_df['low'][::-1].rolling(window=window, min_periods=1).min()[::-1].shift(-1)
-
-    # Determine hits; mask rows where ATR is NaN to avoid spurious labels
-    valid_atr = ~atr_series.isna()
-    hit_up = (future_high_max >= upper_barrier) & valid_atr
-    hit_down = (future_low_min <= lower_barrier) & valid_atr
-
-    # Resolve labels (if both hits occur within window, prefer 'up' deterministically)
-    y = np.where(hit_up, 'up', np.where(hit_down, 'down', 'hold'))
-    result_df['y_class'] = y
-
-    # Horizon minutes and event_end_time approximation
-    result_df.loc[valid_atr, 'horizon_minutes'] = window
-    horizon_delta = pd.to_timedelta(window, unit='m')
-    # Set end time only where ATR is valid; leave as NaT otherwise
-    if result_df.index.tz is not None:
-        result_df.loc[valid_atr, 'event_end_time'] = result_df.index[valid_atr] + horizon_delta  # type: ignore
-    else:
-        result_df.loc[valid_atr, 'event_end_time'] = (result_df.index[valid_atr] + horizon_delta).to_numpy()  # type: ignore
-
-    return result_df
+    # Store weights in metadata to enable downstream use without leaking into X
+    result.attrs["label_weights"] = {"up": float(w_up), "down": float(w_down), "hold": 0.0}
+    result.attrs["event_freq"] = event_freq
+    result.attrs["horizons_min"] = horizons_min
+    return result
 
 
-def _triple_barrier_labels_precise(
+def _triple_barrier_labels_precise_weighted(
     df: pd.DataFrame,
+    event_idx: pd.DatetimeIndex,
     horizons_min: int,
     atr_mult_sl: float,
     r_mult_tp: float,
-    eod_flat: bool
+    eod_flat: bool,
+    tie_break: str,
 ) -> pd.DataFrame:
     """
-    Generate triple-barrier labels for each bar in the DataFrame.
-    
-    For each bar, compute forward path up to min(horizon_minutes, EOD):
-    - Stop = ATR * atr_mult_sl
-    - Target = Stop * take_profit_R
-    - Determine which (TP/SL/timeout) occurs first; set y_class in {up, down, hold}
-    - Also output horizon_minutes actually used and event_end_time
+    Precise first-hit detection with EOD truncation.
     """
-    # Make a copy of the input DataFrame to avoid modifying the original
-    result_df = df.copy()
-    # Ensure index is DatetimeIndex for mypy
-    result_df.index = pd.to_datetime(result_df.index)
-    
-    # Initialize output columns
-    result_df['y_class'] = 'hold'
-    result_df['horizon_minutes'] = 0
-    # Initialize event_end_time column with proper timezone-aware dtype
-    if result_df.index.tz is not None:
-        result_df['event_end_time'] = pd.Series([pd.NaT] * len(result_df), index=result_df.index, dtype=f'datetime64[ns, {result_df.index.tz}]')
-    else:
-        result_df['event_end_time'] = pd.NaT
-    
-    # Calculate ATR for stop loss calculation
-    atr_window = 20  # Default ATR window, can be made configurable
-    atr_series = atr(df, atr_window)
-    
-    # For each row in the DataFrame
-    for i, (idx, row) in enumerate(df.iterrows()):
-        # Ensure idx is Timestamp
-        current_time = pd.Timestamp(idx)  # type: ignore
-        current_close = row['close']
-        current_atr = atr_series.iloc[i]
+    out_idx = []
+    y_class = []
+    horizon_minutes = []
+    event_end_time = []
 
-        # Skip if ATR is NaN
-        if np.isnan(current_atr):
-            continue
-
-        # Calculate stop loss and take profit levels
-        stop_loss_points = current_atr * atr_mult_sl
-        take_profit_points = stop_loss_points * r_mult_tp
-
-        # Define barriers
-        upper_barrier = current_close + take_profit_points  # Long TP
-        lower_barrier = current_close - stop_loss_points     # Long SL
-
-        # Calculate maximum horizon (EOD or specified horizon)
-        max_horizon = pd.Timedelta(minutes=horizons_min)
-
-        if eod_flat:
-            # Get EOD time
-            eod_time = next_session_close(current_time)
-            eod_horizon = eod_time - current_time
-
-            # Use the minimum of specified horizon and EOD horizon
-            actual_horizon = min(max_horizon, eod_horizon)
-        else:
-            actual_horizon = max_horizon
-
-        # Get the end time for this horizon
-        end_time = current_time + actual_horizon
-
-        # Get future data within the horizon
-        future_data = df.loc[current_time:end_time]
-        
-        # Skip if no future data (e.g., at the end of the dataset)
-        if len(future_data) <= 1:
-            continue
-            
-        # Remove the current row from future_data
-        future_data = future_data.iloc[1:]
-        
-        # Initialize variables to track which barrier was hit first
-        hit_upper = False
-        hit_lower = False
-        event_time = end_time  # Default to timeout (end of horizon)
-        
-        # Check each future bar to see which barrier is hit first
-        for future_idx, future_row in future_data.iterrows():
-            future_high = future_row['high']
-            future_low = future_row['low']
-            
-            # Check if upper barrier is hit
-            if not hit_upper and future_high >= upper_barrier:
-                hit_upper = True
-                event_time = pd.Timestamp(future_idx)  # type: ignore
-                break  # Exit loop as soon as a barrier is hit
-                
-            # Check if lower barrier is hit
-            if not hit_lower and future_low <= lower_barrier:
-                hit_lower = True
-                event_time = pd.Timestamp(future_idx)  # type: ignore
-                break  # Exit loop as soon as a barrier is hit
-        
-        # Determine the label based on which barrier was hit
-        if hit_upper:
-            label = 'up'  # Long position would have hit take profit
-        elif hit_lower:
-            label = 'down'  # Long position would have hit stop loss
-        else:
-            label = 'hold'  # Neither barrier was hit (timeout)
-            
-        # Update the result DataFrame
-        idx_ts = pd.Timestamp(idx)  # type: ignore
-        result_df.loc[idx_ts, 'y_class'] = label
-        result_df.loc[idx_ts, 'horizon_minutes'] = int(actual_horizon.total_seconds() / 60)
-        # event_time is already timezone-aware and matches column dtype
-        result_df.loc[idx_ts, 'event_end_time'] = event_time
-    
-    return result_df
-    # Defensive copy and datetime index
-    result_df = df.copy()
-    result_df.index = pd.to_datetime(result_df.index)
-
-    # Initialize output columns
-    result_df['y_class'] = 'hold'
-    result_df['horizon_minutes'] = 0
-
-    # Initialize event_end_time with tz-awareness matching index
-    if result_df.index.tz is not None:
-        result_df['event_end_time'] = pd.Series(
-            [pd.NaT] * len(result_df),
-            index=result_df.index,
-            dtype=f'datetime64[ns, {result_df.index.tz}]'
-        )
-    else:
-        result_df['event_end_time'] = pd.NaT
-
-    # Compute ATR for barrier sizing
+    # Barrier sizing uses ATR on full series
     atr_window = 20
     atr_series = atr(df, atr_window)
 
-    # Barriers
+    # Iterate over events; exclude starts without ATR (warmup)
+    for ts in event_idx:
+        ts = pd.Timestamp(ts)
+        current_atr = atr_series.get(ts, np.nan)
+        if np.isnan(current_atr):
+            # For single-row DataFrames or early events without ATR, assign 'hold'
+            out_idx.append(ts)
+            y_class.append("hold")
+            horizon_minutes.append(horizons_min)  # Use full horizon since no ATR available
+            event_end_time.append(ts + pd.Timedelta(minutes=horizons_min))
+            continue
+
+        start_close = float(df.at[ts, "close"])
+        stop_pts = float(current_atr) * float(atr_mult_sl)
+        tp_pts = stop_pts * float(r_mult_tp)
+        upper = start_close + tp_pts
+        lower = start_close - stop_pts
+
+        # Compute scan horizon (may truncate at EOD)
+        end_time = compute_horizon_end(ts, horizons_min, eod_flat=eod_flat)
+
+        # Timezone harmonization: align end_time to the same tz as df.index (expected ET)
+        # to avoid "Both dates must have the same UTC offset" during slicing.
+        if df.index.tz is not None:
+            _et_tz = df.index.tz  # typically America/New_York
+            end_time = pd.Timestamp(end_time)
+            if end_time.tzinfo is None:
+                end_time = end_time.tz_localize(_et_tz)
+            else:
+                end_time = end_time.tz_convert(_et_tz)
+
+        # Future path strictly after the event bar (bar_close + 1 bar)
+        future = df.loc[ts:end_time]
+        if len(future) <= 1:
+            # No future bars to evaluate; skip
+            continue
+        future = future.iloc[1:]
+
+        label = "hold"
+        ev_time = end_time
+
+        # First-hit search, tie-broken deterministically within a bar
+        for f_ts, row in future.iterrows():
+            hi = row["high"]
+            lo = row["low"]
+            up_hit = hi >= upper
+            dn_hit = lo <= lower
+
+            if up_hit and dn_hit:
+                label = "down" if tie_break.lower() == "sl" else "up"
+                ev_time = pd.Timestamp(f_ts)
+                break
+            elif up_hit:
+                label = "up"
+                ev_time = pd.Timestamp(f_ts)
+                break
+            elif dn_hit:
+                label = "down"
+                ev_time = pd.Timestamp(f_ts)
+                break
+            # else continue
+
+        out_idx.append(ts)
+        y_class.append(label)
+        horizon_minutes.append(int((end_time - ts).total_seconds() // 60))
+        event_end_time.append(ev_time)
+
+    # Assemble output DataFrame on the kept event rows
+    result = df.loc[out_idx].copy() if out_idx else df.iloc[0:0].copy()
+    result["y_class"] = y_class
+    result["horizon_minutes"] = horizon_minutes
+    # Preserve timezone dtype where applicable
+    if result.index.tz is not None:
+        result["event_end_time"] = pd.Series(event_end_time, index=result.index, dtype=f"datetime64[ns, {result.index.tz}]")
+    else:
+        result["event_end_time"] = pd.Series(event_end_time, index=result.index, dtype="datetime64[ns]")
+    return result
+
+
+def _triple_barrier_labels_fast_weighted(
+    df: pd.DataFrame,
+    event_idx: pd.DatetimeIndex,
+    horizons_min: int,
+    atr_mult_sl: float,
+    r_mult_tp: float,
+) -> pd.DataFrame:
+    """
+    Fast, vectorized approximation:
+    - Uses future rolling extrema (excludes current bar via shift(-1)).
+    - Approximates event_end_time as start + horizons_min (no EOD truncation).
+    - Cannot determine true first-hit ordering when both barriers are touched within the window;
+      deterministically prefers 'up' in that rare tie case.
+
+    Use precise mode when exact ordering and EOD truncation are required.
+    """
+    result_df = df.copy()
+    result_df.index = pd.to_datetime(result_df.index)
+
+    atr_window = 20
+    atr_series = atr(df, atr_window)
+
+    # Barrier series
     stop_loss_points = atr_series * atr_mult_sl
     take_profit_points = stop_loss_points * r_mult_tp
-    upper_barrier = result_df['close'] + take_profit_points
-    lower_barrier = result_df['close'] - stop_loss_points
+    upper_barrier = result_df["close"] + take_profit_points
+    lower_barrier = result_df["close"] - stop_loss_points
 
-    # Window in bars (assumes 1-minute bars, consistent with dataset)
+    # Window length in one-minute bars
     window = max(1, int(horizons_min))
 
-    # Forward-looking extrema excluding the current bar
-    # Reverse -> rolling -> reverse -> shift(-1) to exclude current
-    future_high_max = result_df['high'][::-1].rolling(window=window, min_periods=1).max()[::-1].shift(-1)
-    future_low_min = result_df['low'][::-1].rolling(window=window, min_periods=1).min()[::-1].shift(-1)
+    # Future extrema excluding current bar
+    future_high_max = result_df["high"][::-1].rolling(window=window, min_periods=1).max()[::-1].shift(-1)
+    future_low_min = result_df["low"][::-1].rolling(window=window, min_periods=1).min()[::-1].shift(-1)
 
-    # Determine hits; mask rows where ATR is NaN to avoid spurious labels
     valid_atr = ~atr_series.isna()
     hit_up = (future_high_max >= upper_barrier) & valid_atr
     hit_down = (future_low_min <= lower_barrier) & valid_atr
 
-    # Resolve labels (if both hits occur within window, prefer 'up' deterministically)
-    y = np.where(hit_up, 'up', np.where(hit_down, 'down', 'hold'))
-    result_df['y_class'] = y
+    # Prepare output only for sampled events
+    evt_mask = pd.Series(False, index=result_df.index)
+    evt_mask.loc[event_idx] = True
 
-    # Horizon minutes and event_end_time approximation
-    result_df.loc[valid_atr, 'horizon_minutes'] = window
-    horizon_delta = pd.to_timedelta(window, unit='m')
-    # Set end time only where ATR is valid; leave as NaT otherwise
-    if result_df.index.tz is not None:
-        result_df.loc[valid_atr, 'event_end_time'] = result_df.index[valid_atr] + horizon_delta  # type: ignore
+    y_cls = np.where(hit_up, "up", np.where(hit_down, "down", "hold"))
+
+    horizon_delta = pd.to_timedelta(window, unit="m")
+
+    out = result_df.loc[evt_mask].copy()
+    out["y_class"] = y_cls[evt_mask]
+    out["horizon_minutes"] = np.where(valid_atr[evt_mask], window, 0)
+    # event_end_time approximation
+    if out.index.tz is not None:
+        out["event_end_time"] = out.index + horizon_delta  # type: ignore
     else:
-        result_df.loc[valid_atr, 'event_end_time'] = (result_df.index[valid_atr] + horizon_delta).to_numpy()  # type: ignore
-
-    return result_df
+        out["event_end_time"] = (out.index + horizon_delta).to_numpy()  # type: ignore
+    return out

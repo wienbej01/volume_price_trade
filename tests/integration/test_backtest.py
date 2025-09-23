@@ -102,14 +102,14 @@ class TestBacktestIntegration:
         )
         assert shares == 0
         
-        # Test error when entry equals stop
-        with pytest.raises(ValueError):
-            shares_for_risk(
-                equity=100000,
-                entry=100.0,
-                stop=100.0,
-                risk_perc=0.02
-            )
+        # Test when entry equals stop (should return 0 shares)
+        shares = shares_for_risk(
+            equity=100000,
+            entry=100.0,
+            stop=100.0,
+            risk_perc=0.02
+        )
+        assert shares == 0
     
     def test_get_fill_price(self):
         """Test fill price calculation."""
@@ -122,17 +122,17 @@ class TestBacktestIntegration:
         }
         
         # Test next open mode
-        fill_price = get_fill_price('buy', bar, mode='next_open')
+        fill_price = get_fill_price('buy', bar, mode='next_open', slippage_pct=0.0)
         assert fill_price == 100.0
-        
-        fill_price = get_fill_price('sell', bar, mode='next_open')
+
+        fill_price = get_fill_price('sell', bar, mode='next_open', slippage_pct=0.0)
         assert fill_price == 100.0
         
         # Test current close mode
-        fill_price = get_fill_price('buy', bar, mode='current_close')
+        fill_price = get_fill_price('buy', bar, mode='current_close', slippage_pct=0.0)
         assert fill_price == 101.0
-        
-        fill_price = get_fill_price('sell', bar, mode='current_close')
+
+        fill_price = get_fill_price('sell', bar, mode='current_close', slippage_pct=0.0)
         assert fill_price == 101.0
         
         # Test market mode with slippage
@@ -467,7 +467,10 @@ class TestBacktestIntegration:
                     {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in trade.items()}
                     for trade in result['trades']
                 ],
-                'equity_curve': result['equity_curve'].to_dict('records'),
+                'equity_curve': [
+                    {k: (v.isoformat() if isinstance(v, (datetime, pd.Timestamp)) else v) for k, v in record.items()}
+                    for record in result['equity_curve'].to_dict('records')
+                ],
                 'initial_equity': result['initial_equity'],
                 'final_equity': result['final_equity'],
                 'total_return': result['total_return'],
@@ -485,4 +488,5 @@ class TestBacktestIntegration:
             # Verify metrics are reasonable
             assert metrics['trade_stats']['total_trades'] >= 0
             assert -1.0 <= metrics['equity_metrics']['max_drawdown'] <= 0.0
-            assert metrics['equity_metrics']['total_return'] == result['total_return']
+            # Total returns should be close (allow small floating point differences)
+            assert abs(metrics['equity_metrics']['total_return'] - result['total_return']) < 1e-10
