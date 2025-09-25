@@ -118,3 +118,12 @@ Centralize all OHLCV and timestamp validation logic into a single source-of-trut
 - Implementation and unit tests: ~4-6 hours
 - Refactor and integration + full test run: ~2 hours
 - Documentation and cleanup: ~1 hour
+
+## Status
+All rollout steps have been completed:
+1. Implemented `ohlc.py` with exceptions and API.
+2. Added `test_ohlc_rules.py`.
+3. Refactored `validate_bars()` to delegate; unit tests for validation passed.
+4. Integrated optional checks in `preprocess_bars()`, `run_backtest()`, and `get_fill_price()`.
+5. Replaced ad-hoc price checks in features/labels with centralized assertions at module boundaries.
+6. Updated README and inline module docstrings (README did not require changes).

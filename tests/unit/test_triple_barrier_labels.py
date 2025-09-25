@@ -57,7 +57,8 @@ class TestTripleBarrierLabels:
             'high': prices * 1.005,  # High slightly above close
             'low': prices * 0.995,   # Low slightly below close
             'close': prices,
-            'volume': np.random.randint(1000, 10000, n_periods)
+            'volume': np.random.randint(1000, 10000, n_periods),
+            'ticker': 'TEST'
         }, index=dates)
         
         # Ensure high >= max(open, close) and low <= min(open, close)

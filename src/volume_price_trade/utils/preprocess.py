@@ -3,56 +3,41 @@
 import pandas as pd
 import logging
 from typing import Optional
+from volume_price_trade.utils.ohlc import coerce_timestamps
 
 logger = logging.getLogger(__name__)
 
 
+from volume_price_trade.utils.ohlc import coerce_timestamps
+
+
 def preprocess_bars(df: pd.DataFrame, ticker: Optional[str] = None) -> pd.DataFrame:
     """
-    Apply global preprocessing to raw bars:
-    1. Ensure DatetimeIndex (from 'timestamp' col if needed)
-    2. TZ normalize to UTC
-    3. Sort index ascending (monotonic)
-    4. Remove duplicate timestamps (keep first)
+    Apply global preprocessing to raw bars using the centralized `coerce_timestamps` function.
+    This ensures timezone normalization (to UTC), monotonic sorting, and deduplication.
 
     Args:
-        df: Raw DataFrame with potential 'timestamp' column or DatetimeIndex
-        ticker: Optional ticker for logging context
+        df: Raw DataFrame with potential 'timestamp' column or DatetimeIndex.
+        ticker: Optional ticker for logging context. If provided, 'ticker' column
+                is expected for per-ticker operations.
 
     Returns:
-        Cleaned DataFrame with UTC DatetimeIndex, sorted, deduped
+        Cleaned DataFrame with a UTC DatetimeIndex, sorted, and deduped.
     """
     context = f" for {ticker}" if ticker else ""
     if df.empty:
         logger.info(f"Empty DataFrame{context}; returning as-is.")
         return df
 
-    # 1. Ensure DatetimeIndex
+    # Ensure DatetimeIndex before coercion
     if not isinstance(df.index, pd.DatetimeIndex):
         if 'timestamp' in df.columns:
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            df = df.set_index('timestamp')
+            df = df.set_index(pd.to_datetime(df['timestamp'])).drop(columns=['timestamp'])
         else:
             logger.warning(f"No timestamp column or DatetimeIndex{context}; returning as-is.")
             return df
 
-    # 2. TZ normalize to UTC
-    if df.index.tz is None:
-        df.index = df.index.tz_localize('UTC')
-        logger.info(f"Localized index to UTC{context}.")
-    else:
-        df.index = df.index.tz_convert('UTC')
-        logger.info(f"Converted index to UTC{context}.")
-
-    # 3. Sort index ascending (monotonic)
-    if not df.index.is_monotonic_increasing:
-        df = df.sort_index()
-        logger.info(f"Sorted index ascending{context}.")
-
-    # 4. Remove duplicate timestamps (keep first)
-    if df.index.has_duplicates:
-        dupes = df.index.duplicated(keep='first').sum()
-        df = df[~df.index.duplicated(keep='first')]
-        logger.info(f"Removed {dupes} duplicate timestamps{context}.")
-
-    return df
+    logger.info(f"Applying timestamp coercion (UTC, sort, dedupe){context}.")
+    # Use per_ticker logic only if a ticker context is provided and column exists
+    use_per_ticker = ticker is not None and "ticker" in df.columns
+    return coerce_timestamps(df, per_ticker=use_per_ticker)

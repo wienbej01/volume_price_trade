@@ -9,6 +9,7 @@ from collections import defaultdict
 
 from .risk import shares_for_risk, calculate_position_size
 from .fills import get_fill_price, calculate_commission
+from ..utils.ohlc import validate_ohlcv_frame, OhlcValidationError
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -116,6 +117,18 @@ def run_backtest(
     stop_loss_atr_multiple = config.get('backtest', {}).get('stop_loss_atr_multiple', 2.0)
     take_profit_atr_multiple = config.get('backtest', {}).get('take_profit_atr_multiple', 3.0)
     signal_threshold = config.get('backtest', {}).get('signal_threshold', 0.5)
+    validate_on_start = config.get('backtest', {}).get('validate_ohlcv_on_start', True)
+
+    # Optional: Validate the entire OHLCV dataframe once at the start
+    if validate_on_start:
+        logger.info("Performing one-time OHLCV validation on bars data...")
+        try:
+            validate_ohlcv_frame(bars_df, msg_compat=False) # Use modern exceptions
+            logger.info("OHLCV validation passed.")
+        except OhlcValidationError as e:
+            logger.error(f"Initial OHLCV validation failed: {e}")
+            # Decide whether to raise or just log and continue
+            raise e
     
     # Initialize state
     equity = initial_equity

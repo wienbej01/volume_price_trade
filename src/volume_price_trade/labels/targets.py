@@ -23,9 +23,13 @@ Assumptions and integrity:
 import pandas as pd
 import numpy as np
 from typing import Optional
+import logging
 
 from ..features.ta_basic import atr
 from .trade_horizons import sample_event_index, compute_horizon_end
+from ..utils.ohlc import validate_ohlcv_frame, OhlcValidationError
+
+logger = logging.getLogger(__name__)
 
 
 def triple_barrier_labels(
@@ -60,6 +64,13 @@ def triple_barrier_labels(
     - Purging/embargo should use event_end_time to keep temporal integrity.
     - To prevent label leakage into X, this function does not add any label-like numeric columns.
     """
+    # In debug mode, perform a quick validation on the input dataframe.
+    if __debug__:
+        try:
+            validate_ohlcv_frame(df, msg_compat=False)
+        except OhlcValidationError as e:
+            logger.warning(f"Triple barrier labels input failed validation: {e}")
+
     if horizons_min < 5 or horizons_min > 240:
         raise ValueError("horizons_min must be within [5, 240] minutes")
 

@@ -5,6 +5,8 @@ import pandas as pd
 from typing import Union, Dict, Any, Optional
 import logging
 
+from ..utils.ohlc import is_valid_ohlcv_row
+
 # Configure logger
 logger = logging.getLogger(__name__)
 
@@ -32,6 +34,12 @@ def get_fill_price(
     Raises:
         ValueError: If side is not 'buy' or 'sell', or if mode is invalid
     """
+    # In debug mode, perform a quick validation on the bar data.
+    # This has no overhead in production (when python -O is used).
+    if __debug__:
+        assert is_valid_ohlcv_row(pd.Series(bar) if isinstance(bar, dict) else bar), \
+            f"Invalid OHLCV row provided to get_fill_price: {bar}"
+
     # Validate side
     side = side.lower()
     if side not in ['buy', 'sell']:

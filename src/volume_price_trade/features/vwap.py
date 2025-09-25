@@ -2,8 +2,12 @@
 
 import pandas as pd
 import numpy as np
+import logging
 from ..data.calendar import is_rth
 from .ta_basic import atr
+from ..utils.ohlc import validate_ohlcv_frame, OhlcValidationError
+
+logger = logging.getLogger(__name__)
 
 
 def compute_vwap_features(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
@@ -17,6 +21,13 @@ def compute_vwap_features(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     Returns:
         DataFrame with VWAP features
     """
+    # In debug mode, perform a quick validation on the input dataframe.
+    if __debug__:
+        try:
+            validate_ohlcv_frame(df, msg_compat=False)
+        except OhlcValidationError as e:
+            logger.warning(f"VWAP features input failed validation: {e}")
+
     # Make a copy to avoid modifying the original DataFrame
     result_df = df.copy()
     
