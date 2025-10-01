@@ -14,7 +14,7 @@ The system is organized into the following modules:
 
 ## Milestones
 
-### M1: Data & Sessions
+### M1: Data & Sessions (COMPLETED)
 **Objectives**:
 - Implement GCS Parquet data loader with proper timezone handling
 - Create calendar helpers for trading sessions and early close days
@@ -25,7 +25,7 @@ The system is organized into the following modules:
 - Calendar helper identifies trading days and early closes
 - Data is properly timezone-aware (America/New_York)
 
-### M2: Features v1 (VP/VPA/ICT/ToD)
+### M2: Features v1 (VP/VPA/ICT/ToD) (COMPLETED)
 **Objectives**:
 - Implement Volume Profile features (top-5)
 - Implement Volume Price Analysis features (top-5)
@@ -37,7 +37,7 @@ The system is organized into the following modules:
 - Features are deterministic given same input
 - Features pass unit tests with edge cases
 
-### M3: Labels & Dataset
+### M3: Labels & Dataset (COMPLETED)
 **Objectives**:
 - Implement triple-barrier labeling with configurable horizons (5-240m)
 - Ensure EOD truncation of labels
@@ -48,7 +48,7 @@ The system is organized into the following modules:
 - Dataset builder creates feature-label pairs with proper alignment
 - Labels respect EOD flattening rule
 
-### M4: ML Baselines & CV
+### M4: ML Baselines & CV (COMPLETED)
 **Objectives**:
 - Implement XGBoost and LightGBM baseline models
 - Create purged walk-forward cross-validation

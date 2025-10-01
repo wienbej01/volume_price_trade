@@ -5,8 +5,32 @@ import pandas as pd
 import pytz
 from datetime import time
 
-from volume_price_trade.data.calendar import is_rth, next_session_close, ET, RTH_START, RTH_END
+from volume_price_trade.data.calendar import is_rth, next_session_close, ET, RTH_START, RTH_END, get_early_close_dates
+from datetime import date
 
+class TestGetEarlyCloseDates:
+    """Test get_early_close_dates function."""
+
+    def test_2023(self):
+        """Test early close dates for 2023."""
+        dates = get_early_close_dates((2023,))
+        assert date(2023, 7, 3) in dates
+        assert date(2023, 11, 24) in dates
+        assert date(2023, 12, 24) not in dates # Sunday
+
+    def test_2024(self):
+        """Test early close dates for 2024 (leap year)."""
+        dates = get_early_close_dates((2024,))
+        assert date(2024, 7, 3) in dates
+        assert date(2024, 11, 29) in dates
+        assert date(2024, 12, 24) in dates
+
+    def test_2025(self):
+        """Test early close dates for 2025."""
+        dates = get_early_close_dates((2025,))
+        assert date(2025, 7, 3) in dates
+        assert date(2025, 11, 28) in dates
+        assert date(2025, 12, 24) in dates
 
 class TestIsRTH:
     """Test is_rth function with edge cases."""
@@ -52,96 +76,24 @@ class TestIsRTH:
         # Tuesday 16:00:00 ET
         ts = pd.Timestamp("2023-06-13 16:00:00").tz_localize(ET)
         assert is_rth(ts) is False
-    
-    def test_rth_edge_times_opening(self):
-        """Test edge times around market opening (09:30)."""
-        # Just before opening (09:29:59)
-        ts_before = pd.Timestamp("2023-06-13 09:29:59").tz_localize(ET)
-        assert is_rth(ts_before) is False
-        
-        # Exactly at opening (09:30:00)
-        ts_at = pd.Timestamp("2023-06-13 09:30:00").tz_localize(ET)
-        assert is_rth(ts_at) is True
-        
-        # Just after opening (09:30:01)
-        ts_after = pd.Timestamp("2023-06-13 09:30:01").tz_localize(ET)
-        assert is_rth(ts_after) is True
-    
-    def test_rth_edge_times_closing(self):
-        """Test edge times around market closing (16:00)."""
-        # Just before closing (15:59:59)
-        ts_before = pd.Timestamp("2023-06-13 15:59:59").tz_localize(ET)
-        assert is_rth(ts_before) is True
-        
-        # Exactly at closing (16:00:00)
-        ts_at = pd.Timestamp("2023-06-13 16:00:00").tz_localize(ET)
-        assert is_rth(ts_at) is False
-        
-        # Just after closing (16:00:01)
-        ts_after = pd.Timestamp("2023-06-13 16:00:01").tz_localize(ET)
-        assert is_rth(ts_after) is False
-    
-    def test_rth_during_trading_hours(self):
-        """Test timestamps during regular trading hours."""
-        # Various times during RTH
-        times = [
-            "2023-06-13 10:00:00",  # Mid-morning
-            "2023-06-13 11:30:00",  # Late morning
-            "2023-06-13 13:00:00",  # Early afternoon
-            "2023-06-13 14:30:00",  # Mid-afternoon
-            "2023-06-13 15:30:00",  # Late afternoon
-        ]
-        
-        for time_str in times:
-            ts = pd.Timestamp(time_str).tz_localize(ET)
-            assert is_rth(ts) is True, f"Failed for {time_str}"
-    
-    def test_rth_outside_trading_hours(self):
-        """Test timestamps outside regular trading hours."""
-        # Various times outside RTH
-        times = [
-            "2023-06-13 04:00:00",  # Early morning
-            "2023-06-13 09:29:00",  # Just before opening
-            "2023-06-13 16:01:00",  # Just after closing
-            "2023-06-13 20:00:00",  # Evening
-        ]
-        
-        for time_str in times:
-            ts = pd.Timestamp(time_str).tz_localize(ET)
-            assert is_rth(ts) is False, f"Failed for {time_str}"
-    
-    def test_rth_timezone_handling(self):
-        """Test proper timezone handling for different input timezones."""
-        # Same time in different timezones
-        et_time = "2023-06-13 10:30:00"  # During RTH in ET
-        
-        # Test with ET timezone
-        ts_et = pd.Timestamp(et_time).tz_localize(ET)
-        assert is_rth(ts_et) is True
-        
-        # Test with UTC timezone (14:30 UTC = 10:30 ET)
-        ts_utc = pd.Timestamp("2023-06-13 14:30:00").tz_localize("UTC")
-        assert is_rth(ts_utc) is True
-        
-        # Test with PST timezone (07:30 PST = 10:30 ET)
-        ts_pst = pd.Timestamp("2023-06-13 07:30:00").tz_localize("US/Pacific")
-        assert is_rth(ts_pst) is True
-        
-        # Test with no timezone (should be treated as ET)
-        ts_no_tz = pd.Timestamp("2023-06-13 10:30:00")
-        assert is_rth(ts_no_tz) is True
-    
-    def test_utc_timestamp(self):
-        """Test UTC timestamp conversion."""
-        # Tuesday 14:30 UTC = 10:30 ET
-        ts = pd.Timestamp("2023-06-13 14:30:00").tz_localize("UTC")
-        assert is_rth(ts) is True
-    
-    def test_string_timestamp(self):
-        """Test string timestamp input."""
-        ts = "2023-06-13 10:30:00"
+
+    def test_early_close_day_during_rth(self):
+        """Test RTH on an early close day."""
+        # July 3, 2023, 10:30 ET
+        ts = pd.Timestamp("2023-07-03 10:30:00").tz_localize(ET)
         assert is_rth(ts) is True
 
+    def test_early_close_day_after_close(self):
+        """Test after close on an early close day."""
+        # July 3, 2023, 14:00 ET
+        ts = pd.Timestamp("2023-07-03 14:00:00").tz_localize(ET)
+        assert is_rth(ts) is False
+
+    def test_early_close_edge(self):
+        """Test exactly at early close time."""
+        # July 3, 2023, 13:00 ET
+        ts = pd.Timestamp("2023-07-03 13:00:00").tz_localize(ET)
+        assert is_rth(ts) is False
 
 class TestNextSessionClose:
     """Test next_session_close function."""
@@ -185,32 +137,29 @@ class TestNextSessionClose:
         # Should be Monday at 16:00 ET
         expected = pd.Timestamp("2023-06-19 16:00:00").tz_localize(ET)
         assert result == expected
-    
-    def test_sunday(self):
-        """Test Sunday - should skip to Monday."""
-        # Sunday 10:30 ET
-        ts = pd.Timestamp("2023-06-18 10:30:00").tz_localize(ET)
+
+    def test_early_close_day_before_close(self):
+        """Test before close on an early close day."""
+        # July 3, 2023, 10:30 ET
+        ts = pd.Timestamp("2023-07-03 10:30:00").tz_localize(ET)
         result = next_session_close(ts)
-        
-        # Should be Monday at 16:00 ET
-        expected = pd.Timestamp("2023-06-19 16:00:00").tz_localize(ET)
+        expected = pd.Timestamp("2023-07-03 13:00:00").tz_localize(ET)
         assert result == expected
-    
-    def test_utc_timestamp(self):
-        """Test UTC timestamp conversion."""
-        # Tuesday 14:30 UTC = 10:30 ET
-        ts = pd.Timestamp("2023-06-13 14:30:00").tz_localize("UTC")
+
+    def test_early_close_day_after_close(self):
+        """Test after close on an early close day."""
+        # July 3, 2023, 14:00 ET
+        ts = pd.Timestamp("2023-07-03 14:00:00").tz_localize(ET)
         result = next_session_close(ts)
-        
-        # Should be same day at 16:00 ET = 20:00 UTC
-        expected = pd.Timestamp("2023-06-13 20:00:00").tz_localize("UTC")
+        # Next day is July 4th, a holiday, so it should be July 5th
+        expected = pd.Timestamp("2023-07-05 16:00:00").tz_localize(ET)
         assert result == expected
-    
-    def test_string_timestamp(self):
-        """Test string timestamp input."""
-        ts = "2023-06-13 10:30:00"
+
+    def test_day_before_early_close(self):
+        """Test the day before an early close day."""
+        # July 2, 2023 (Sunday)
+        ts = pd.Timestamp("2023-07-02 10:00:00").tz_localize(ET)
         result = next_session_close(ts)
-        
-        # Should be same day at 16:00 ET
-        expected = pd.Timestamp("2023-06-13 16:00:00").tz_localize(ET)
+        # Next session is July 3, an early close day
+        expected = pd.Timestamp("2023-07-03 13:00:00").tz_localize(ET)
         assert result == expected

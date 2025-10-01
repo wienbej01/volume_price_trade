@@ -13,7 +13,10 @@ from volume_price_trade.data.gcs_loader import load_minute_bars, list_available_
 from volume_price_trade.utils.validation import validate_bars
 
 
+import logging
+
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     parser = argparse.ArgumentParser(description="Load and inspect minute bar data")
     parser.add_argument("--ticker", required=True, help="Stock ticker symbol")
     parser.add_argument("--start", required=True, help="Start date (YYYY-MM-DD)")
@@ -49,8 +52,8 @@ def main():
     # Print basic stats
     print("\nDataset statistics:")
     print(f"Total bars: {len(df)}")
-    print(f"Date range: {df['timestamp'].min()} to {df['timestamp'].max()}")
-    print(f"Trading days: {df['timestamp'].dt.date.nunique()}")
+    print(f"Date range: {df.index.min()} to {df.index.max()}")
+    print(f"Trading days: {df.index.date.nunique()}")
 
     # Print column info
     print(f"\nColumns: {list(df.columns)}")
@@ -64,7 +67,7 @@ def main():
     # Print volume stats
     if "volume" in df.columns:
         print("\nVolume statistics:")
-        print(f"Average daily volume: {df.groupby(df['timestamp'].dt.date)['volume'].sum().mean():.0f}")
+        print(f"Average daily volume: {df.groupby(df.index.date)['volume'].sum().mean():.0f}")
         print(f"Average minute volume: {df['volume'].mean():.0f}")
 
 
